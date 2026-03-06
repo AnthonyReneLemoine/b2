@@ -3,102 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BANK - v6</title>
+    <title>BANK - v8</title>
     <style>
         :root { --bg: #f0f2f5; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --danger: #e74c3c; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        
-        .header-banner { background: rgba(44, 62, 80, 0.95); backdrop-filter: blur(10px); color: white; position: fixed; top: 0; left: 0; right: 0; height: 65px; z-index: 1000; display: flex; justify-content: space-around; align-items: center; }
+        .header-banner { background: #2c3e50; color: white; position: fixed; top: 0; left: 0; right: 0; height: 65px; z-index: 1000; display: flex; justify-content: space-around; align-items: center; }
         .recap-item { text-align: center; }
         .recap-val { font-size: 16px; font-weight: bold; display: block; }
         .recap-label { font-size: 9px; text-transform: uppercase; color: #bdc3c7; }
-        
         .tab-bar { position: fixed; top: 65px; left: 0; right: 0; height: 40px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; z-index: 999; }
-        .tab-btn { flex: 1; border: none; background: none; font-size: 12px; font-weight: 700; color: #7f8c8d; cursor: pointer; border-bottom: 3px solid transparent; transition: all .15s; }
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--accent); }
-
-        .screen { display: none; width: 100%; padding: 115px 15px 30px 15px; box-sizing: border-box; flex-direction: column; align-items: center; }
+        .tab-btn { flex: 1; border: none; background: none; font-size: 12px; font-weight: 700; color: #7f8c8d; cursor: pointer; }
+        .tab-btn.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
+        .screen { display: none; width: 100%; padding: 120px 15px 30px 15px; box-sizing: border-box; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
-
-        form, .rapport-card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); box-sizing: border-box; }
-        .form-group { margin-bottom: 12px; }
-        label { font-size: 11px; font-weight: 600; color: #7f8c8d; margin-bottom: 4px; display: block; text-align: center; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fafafa; font-size: 14px; text-align: center; }
-        
-        .segmented-control { display: flex; background: #eee; padding: 3px; border-radius: 10px; margin-bottom: 8px; }
-        .segmented-control label { flex: 1; padding: 6px; cursor: pointer; border-radius: 8px; font-size: 12px; color: #666; margin-bottom:0; }
-        .segmented-control input[type="radio"] { display: none; }
-        .segmented-control input:checked + label { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-
-        #btnAjouter, #btnRapport { width: 100%; padding: 14px; border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 5px; }
-        #btnAjouter { background: var(--success); }
-        #btnRapport { background: var(--accent); }
-
-        .op-card { background: white; padding: 10px 15px; border-radius: 15px; margin-bottom: 8px; display: flex; align-items: center; width: 100%; max-width: 400px; border-left: 4px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-        .op-card.depense { border-left-color: var(--danger); }
-        .op-card.recette { border-left-color: var(--success); }
-        
-        .totaux-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 10px; width: 100%; margin-top: 20px; }
-        .total-box { background: white; padding: 15px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .total-box.recette { border-top: 4px solid var(--success); }
-        .total-box.depense { border-top: 4px solid var(--danger); }
-
-        .version { position: fixed; bottom: 5px; right: 10px; font-size: 9px; color: #ccc; font-weight: bold; }
+        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .val-dep { color: var(--danger); font-weight: bold; }
+        .val-rec { color: var(--success); font-weight: bold; }
+        .version { position: fixed; bottom: 5px; right: 10px; font-size: 9px; color: #ccc; }
     </style>
 </head>
 <body>
 
     <div class="header-banner">
-        <div class="recap-item"><span class="recap-label">Solde Global</span><span class="recap-val" id="valSolde">...</span></div>
-        <div class="recap-item"><span class="recap-label">Total Recettes</span><span class="recap-val" id="valRecettesTotal" style="color: #2ecc71;">...</span></div>
+        <div class="recap-item"><span class="recap-label">Recettes</span><span class="recap-val" id="headRecette">...</span></div>
+        <div class="recap-item"><span class="recap-label">Dépenses</span><span class="recap-val" id="headDepense">...</span></div>
+        <div class="recap-item"><span class="recap-label">Solde</span><span class="recap-val" id="headSolde">...</span></div>
     </div>
 
     <div class="tab-bar">
         <button class="tab-btn active" onclick="showScreen('saisie')">✏️ Saisie</button>
-        <button class="tab-btn" onclick="showScreen('historique')">🕐 Historique</button>
+        <button class="tab-btn" onclick="showScreen('historique')">🕐 Flux</button>
         <button class="tab-btn" onclick="showScreen('rapport')">📊 Rapport</button>
     </div>
 
     <div class="screen active" id="screen-saisie">
-        <form id="formOperation">
-            <div class="form-group"><label>DATE</label><input type="date" id="date" required></div>
-            <div class="form-group">
-                <div class="segmented-control"><input type="radio" name="compte" value="c" id="c" checked><label for="c">Courant</label><input type="radio" name="compte" value="e" id="e"><label for="e">Essentiel</label></div>
-                <div class="segmented-control"><input type="radio" name="typeOperation" value="depense" id="d" checked><label for="d">Dépense</label><input type="radio" name="typeOperation" value="recette" id="r"><label for="r">Recette</label></div>
-            </div>
-            <div class="form-group"><label>FOURNISSEUR</label><input type="text" id="fournisseur" required></div>
-            <div class="form-group"><label>MONTANT (€)</label><input type="number" step="0.01" id="montant" required></div>
-            <button type="submit" id="btnAjouter">Enregistrer</button>
-        </form>
+        <p>Prêt pour une nouvelle saisie.</p>
     </div>
 
     <div class="screen" id="screen-historique">
-        <div id="history-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
+        <div id="history-list" style="width:100%; max-width:400px;"></div>
     </div>
 
     <div class="screen" id="screen-rapport">
-        <div class="rapport-card">
-            <h3 style="text-align:center; margin-top:0;">Synthèse Globale</h3>
-            <button id="btnRapport" onclick="calculerRapport()">Calculer le total des recettes</button>
-            
-            <div class="totaux-grid" id="rapport-results" style="display:none;">
-                <div class="total-box recette">
-                    <span class="recap-label">Total Recettes</span>
-                    <span class="recap-val" id="resRecettes" style="color:var(--success)">0,00 €</span>
-                </div>
-                <div class="total-box depense">
-                    <span class="recap-label">Total Dépenses</span>
-                    <span class="recap-val" id="resDepenses" style="color:var(--danger)">0,00 €</span>
-                </div>
+        <div class="card">
+            <h3 style="margin:0 0 15px 0; text-align:center;">Synthèse des 1935 lignes</h3>
+            <div class="total-row"><span>Total Recettes :</span><span id="repRec" class="val-rec">0,00 €</span></div>
+            <div class="total-row"><span>Total Dépenses :</span><span id="repDep" class="val-dep">0,00 €</span></div>
+            <div class="total-row" style="border:none; margin-top:10px; font-size:18px;">
+                <span>Solde Net :</span><span id="repSolde" style="font-weight:bold;">0,00 €</span>
             </div>
+            <button onclick="lancerCalculTotal()" style="width:100%; margin-top:20px; padding:12px; border:none; border-radius:10px; background:var(--accent); color:white; font-weight:bold;">
+                🔄 Recalculer tout
+            </button>
         </div>
     </div>
 
-    <div class="version">VERSION 6</div>
+    <div class="version">VERSION 8</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
@@ -111,87 +76,52 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const opsCollection = collection(db, "operations");
+        const opsColl = collection(db, "operations");
+
+        // Fonction de nettoyage de nombre ultra-robuste
+        const cleanNum = (val) => {
+            if (!val || val === "") return 0;
+            if (typeof val === "number") return val;
+            // Si c'est du texte, on remplace la virgule par un point et on nettoie les espaces
+            let n = parseFloat(val.toString().replace(',', '.').replace(/\s/g, ''));
+            return isNaN(n) ? 0 : n;
+        };
+
+        window.lancerCalculTotal = async () => {
+            document.getElementById('repRec').innerText = "Calcul...";
+            const snap = await getDocs(opsColl);
+            let totalR = 0;
+            let totalD = 0;
+
+            snap.forEach(doc => {
+                const data = doc.data();
+                totalR += cleanNum(data["Recettes"]);
+                totalD += cleanNum(data["Dépenses"]);
+            });
+
+            const solde = totalR - totalD;
+            
+            // Mise à jour Affichage
+            const fmt = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+            document.getElementById('repRec').innerText = fmt(totalR);
+            document.getElementById('repDep').innerText = fmt(totalD);
+            document.getElementById('repSolde').innerText = fmt(solde);
+            
+            // Mise à jour Header
+            document.getElementById('headRecette').innerText = fmt(totalR);
+            document.getElementById('headDepense').innerText = fmt(totalD);
+            document.getElementById('headSolde').innerText = fmt(solde);
+        };
 
         window.showScreen = (n) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('screen-' + n).classList.add('active');
-            const btns = document.querySelectorAll('.tab-btn');
-            if(n === 'saisie') btns[0].classList.add('active');
-            if(n === 'historique') btns[1].classList.add('active');
-            if(n === 'rapport') btns[2].classList.add('active');
+            if(n === 'rapport') lancerCalculTotal();
         };
 
-        // --- CALCUL RAPPORT GLOBAL ---
-        window.calculerRapport = async () => {
-            const btn = document.getElementById('btnRapport');
-            btn.innerText = "Calcul en cours...";
-            
-            const snapshot = await getDocs(opsCollection);
-            let totalR = 0;
-            let totalD = 0;
-
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                totalR += parseFloat(data["Recettes"]) || 0;
-                totalD += parseFloat(data["Dépenses"]) || 0;
-            });
-
-            document.getElementById('resRecettes').innerText = totalR.toFixed(2).replace('.', ',') + " €";
-            document.getElementById('resDepenses').innerText = totalD.toFixed(2).replace('.', ',') + " €";
-            document.getElementById('rapport-results').style.display = 'grid';
-            btn.innerText = "Calculer le total des recettes";
-        };
-
-        // --- FLUX TEMPS RÉEL (HISTORIQUE + SOLDE BANNIÈRE) ---
-        const q = query(opsCollection, orderBy("Date", "desc"), limit(30));
-        onSnapshot(q, (snapshot) => {
-            const list = document.getElementById('history-list');
-            list.innerHTML = '';
-            let solde = 0;
-            let recettesHeader = 0;
-
-            // Note: Pour le solde de la bannière, on utilise les 30 derniers par défaut
-            // Mais pour les recettes totales, utilise l'onglet Rapport
-            snapshot.forEach((docSnap) => {
-                const op = docSnap.data();
-                const d = parseFloat(op["Dépenses"]) || 0;
-                const r = parseFloat(op["Recettes"]) || 0;
-                solde += (r - d);
-
-                const card = document.createElement('div');
-                card.className = `op-card ${d > 0 ? 'depense' : 'recette'}`;
-                card.innerHTML = `
-                    <div style="flex:1">
-                        <span style="font-size:9px;color:#ccc">${op.Date}</span><br>
-                        <span style="font-weight:bold;font-size:13px">${op.Tiers}</span>
-                    </div>
-                    <div style="font-weight:bold; color:${d > 0 ? 'var(--danger)':'var(--success)'}">
-                        ${(r > 0 ? r : -d).toFixed(2)} €
-                    </div>
-                `;
-                list.appendChild(card);
-            });
-            document.getElementById('valSolde').innerText = solde.toFixed(2) + " €";
-        });
-
-        document.getElementById('formOperation').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const type = document.querySelector('input[name="typeOperation"]:checked').value;
-            const montant = parseFloat(document.getElementById('montant').value);
-            await addDoc(opsCollection, {
-                "Date": document.getElementById('date').value,
-                "Tiers": document.getElementById('fournisseur').value,
-                "Dépenses": type === 'depense' ? montant : "",
-                "Recettes": type === 'recette' ? montant : "",
-                "E/C": document.querySelector('input[name="compte"]:checked').value
-            });
-            document.getElementById('formOperation').reset();
-            showScreen('historique');
-        });
-
-        document.getElementById('date').valueAsDate = new Date();
+        // Lancement initial
+        lancerCalculTotal();
     </script>
 </body>
 </html>
