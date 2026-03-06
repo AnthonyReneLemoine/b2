@@ -3,67 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BANK - v8</title>
+    <title>BANK - v9</title>
     <style>
         :root { --bg: #f0f2f5; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --danger: #e74c3c; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        .header-banner { background: #2c3e50; color: white; position: fixed; top: 0; left: 0; right: 0; height: 65px; z-index: 1000; display: flex; justify-content: space-around; align-items: center; }
+        
+        /* Banner & Header */
+        .header-banner { background: #2c3e50; color: white; position: fixed; top: 0; left: 0; right: 0; height: 65px; z-index: 1000; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .recap-item { text-align: center; }
-        .recap-val { font-size: 16px; font-weight: bold; display: block; }
-        .recap-label { font-size: 9px; text-transform: uppercase; color: #bdc3c7; }
-        .tab-bar { position: fixed; top: 65px; left: 0; right: 0; height: 40px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; z-index: 999; }
-        .tab-btn { flex: 1; border: none; background: none; font-size: 12px; font-weight: 700; color: #7f8c8d; cursor: pointer; }
-        .tab-btn.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
-        .screen { display: none; width: 100%; padding: 120px 15px 30px 15px; box-sizing: border-box; flex-direction: column; align-items: center; }
+        .recap-val { font-size: 15px; font-weight: bold; display: block; }
+        .recap-label { font-size: 8px; text-transform: uppercase; color: #bdc3c7; letter-spacing: 1px; }
+
+        /* Tabs */
+        .tab-bar { position: fixed; top: 65px; left: 0; right: 0; height: 45px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; z-index: 999; }
+        .tab-btn { flex: 1; border: none; background: none; font-size: 12px; font-weight: 700; color: #7f8c8d; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* Content Screens */
+        .screen { display: none; width: 100%; padding: 130px 15px 30px 15px; box-sizing: border-box; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
-        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .val-dep { color: var(--danger); font-weight: bold; }
-        .val-rec { color: var(--success); font-weight: bold; }
-        .version { position: fixed; bottom: 5px; right: 10px; font-size: 9px; color: #ccc; }
+
+        /* Forms & Cards */
+        form, .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .form-group { margin-bottom: 12px; }
+        label { font-size: 11px; font-weight: 600; color: #7f8c8d; margin-bottom: 4px; display: block; text-align: center; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 12px; background: #fafafa; font-size: 14px; text-align: center; font-family: inherit; }
+        
+        .segmented-control { display: flex; background: #eee; padding: 3px; border-radius: 12px; margin-bottom: 8px; }
+        .segmented-control label { flex: 1; text-align: center; padding: 8px; cursor: pointer; border-radius: 10px; font-size: 12px; color: #666; margin: 0; transition: 0.2s; }
+        .segmented-control input[type="radio"] { display: none; }
+        .segmented-control input:checked + label { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-weight: bold; }
+
+        #btnAjouter { width: 100%; padding: 15px; border: none; border-radius: 12px; background: var(--success); color: white; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3); }
+
+        /* History Cards */
+        .op-card { background: white; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; display: flex; align-items: center; width: 100%; max-width: 400px; border-left: 5px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.03); box-sizing: border-box; }
+        .op-card.depense { border-left-color: var(--danger); }
+        .op-card.recette { border-left-color: var(--success); }
+        .op-main { flex: 1; margin-left: 8px; }
+        .op-name { font-weight: 700; font-size: 13px; color: var(--primary); }
+        .op-amt { font-weight: 800; font-size: 14px; min-width: 90px; text-align: right; }
+        
+        .btn-toggle { background: #eee; color: #999; border: none; padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; margin-right: 5px; }
+        .btn-toggle.active-p { background: var(--accent); color: white; }
+        .btn-toggle.active-v { background: #f1c40f; color: #2c3e50; }
+        .btn-del { background: #fff5f5; color: var(--danger); border: none; width: 30px; height: 30px; border-radius: 10px; cursor: pointer; font-size: 20px; line-height: 1; }
+
+        .total-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+        .version { position: fixed; bottom: 8px; right: 12px; font-size: 10px; color: #cbd5e0; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="header-banner">
-        <div class="recap-item"><span class="recap-label">Recettes</span><span class="recap-val" id="headRecette">...</span></div>
-        <div class="recap-item"><span class="recap-label">Dépenses</span><span class="recap-val" id="headDepense">...</span></div>
+        <div class="recap-item"><span class="recap-label">Recettes</span><span class="recap-val" id="headRecette" style="color: #2ecc71;">...</span></div>
+        <div class="recap-item"><span class="recap-label">Dépenses</span><span class="recap-val" id="headDepense" style="color: #ff7675;">...</span></div>
         <div class="recap-item"><span class="recap-label">Solde</span><span class="recap-val" id="headSolde">...</span></div>
     </div>
 
     <div class="tab-bar">
-        <button class="tab-btn active" onclick="showScreen('saisie')">✏️ Saisie</button>
-        <button class="tab-btn" onclick="showScreen('historique')">🕐 Flux</button>
-        <button class="tab-btn" onclick="showScreen('rapport')">📊 Rapport</button>
+        <button class="tab-btn active" id="tab-saisie" onclick="showScreen('saisie')">✏️ Saisie</button>
+        <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">🕐 Historique</button>
+        <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">📊 Rapport</button>
     </div>
 
     <div class="screen active" id="screen-saisie">
-        <p>Prêt pour une nouvelle saisie.</p>
+        <form id="formOperation">
+            <div class="form-group"><label>DATE D'OPÉRATION</label><input type="date" id="date" required></div>
+            
+            <div class="form-group">
+                <label>COMPTE & TYPE</label>
+                <div class="segmented-control">
+                    <input type="radio" name="compte" value="c" id="c" checked><label for="c">Courant</label>
+                    <input type="radio" name="compte" value="e" id="e"><label for="e">Essentiel</label>
+                </div>
+                <div class="segmented-control">
+                    <input type="radio" name="typeOp" value="depense" id="d" checked><label for="d">Dépense</label>
+                    <input type="radio" name="typeOp" value="recette" id="r"><label for="r">Recette</label>
+                </div>
+            </div>
+
+            <div class="form-group"><label>TIERS / FOURNISSEUR</label><input type="text" id="tiers" placeholder="Ex: Drive Leclerc Theix" required></div>
+            <div class="form-group"><label>MONTANT (€)</label><input type="number" step="0.01" id="montant" placeholder="0.00" required inputmode="decimal"></div>
+            
+            <div class="form-group">
+                <label>MOYEN DE PAIEMENT</label>
+                <select id="paiement">
+                    <option>Carte Bancaire</option>
+                    <option>Prélèvement</option>
+                    <option>Virement</option>
+                    <option>Espèces</option>
+                </select>
+            </div>
+
+            <button type="submit" id="btnAjouter">ENREGISTRER</button>
+        </form>
     </div>
 
     <div class="screen" id="screen-historique">
-        <div id="history-list" style="width:100%; max-width:400px;"></div>
+        <div id="history-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            </div>
     </div>
 
     <div class="screen" id="screen-rapport">
         <div class="card">
-            <h3 style="margin:0 0 15px 0; text-align:center;">Synthèse des 1935 lignes</h3>
-            <div class="total-row"><span>Total Recettes :</span><span id="repRec" class="val-rec">0,00 €</span></div>
-            <div class="total-row"><span>Total Dépenses :</span><span id="repDep" class="val-dep">0,00 €</span></div>
-            <div class="total-row" style="border:none; margin-top:10px; font-size:18px;">
-                <span>Solde Net :</span><span id="repSolde" style="font-weight:bold;">0,00 €</span>
+            <h3 style="margin:0 0 15px 0; text-align:center; font-size: 14px; color: #7f8c8d; text-transform: uppercase;">Synthèse Globale</h3>
+            <div class="total-row"><span>Total Recettes :</span><span id="repRec" style="color:var(--success); font-weight:bold;">0,00 €</span></div>
+            <div class="total-row"><span>Total Dépenses :</span><span id="repDep" style="color:var(--danger); font-weight:bold;">0,00 €</span></div>
+            <div class="total-row" style="border:none; margin-top:10px; font-size:18px; color: var(--primary);">
+                <span>Solde Net :</span><span id="repSolde" style="font-weight:900;">0,00 €</span>
             </div>
-            <button onclick="lancerCalculTotal()" style="width:100%; margin-top:20px; padding:12px; border:none; border-radius:10px; background:var(--accent); color:white; font-weight:bold;">
-                🔄 Recalculer tout
+            <button onclick="calculerTout()" style="width:100%; margin-top:20px; padding:15px; border:none; border-radius:12px; background:var(--accent); color:white; font-weight:bold; cursor:pointer;">
+                🔄 ACTUALISER LES CALCULS
             </button>
         </div>
     </div>
 
-    <div class="version">VERSION 8</div>
+    <div class="version">VERSION 9</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
@@ -78,50 +138,113 @@
         const db = getFirestore(app);
         const opsColl = collection(db, "operations");
 
-        // Fonction de nettoyage de nombre ultra-robuste
-        const cleanNum = (val) => {
-            if (!val || val === "") return 0;
-            if (typeof val === "number") return val;
-            // Si c'est du texte, on remplace la virgule par un point et on nettoie les espaces
-            let n = parseFloat(val.toString().replace(',', '.').replace(/\s/g, ''));
+        // Utilitaire de nettoyage robuste pour les calculs
+        const cleanVal = (v) => {
+            if (!v || v === "") return 0;
+            if (typeof v === "number") return v;
+            let n = parseFloat(v.toString().replace(',', '.').replace(/\s/g, ''));
             return isNaN(n) ? 0 : n;
         };
 
-        window.lancerCalculTotal = async () => {
-            document.getElementById('repRec').innerText = "Calcul...";
+        const fmt = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+        // --- NAVIGATION ---
+        window.showScreen = (n) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('screen-' + n).classList.add('active');
+            document.getElementById('tab-' + n).classList.add('active');
+            if(n === 'rapport') calculerTout();
+        };
+
+        // --- ENREGISTREMENT ---
+        document.getElementById('formOperation').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const type = document.querySelector('input[name="typeOp"]:checked').value;
+            const montant = parseFloat(document.getElementById('montant').value);
+
+            const op = {
+                "Date": document.getElementById('date').value,
+                "Tiers": document.getElementById('tiers').value,
+                "Dépenses": type === 'depense' ? montant : "",
+                "Recettes": type === 'recette' ? montant : "",
+                "E/C": document.querySelector('input[name="compte"]:checked').value,
+                "moyen de paiement": document.getElementById('paiement').value,
+                "P": "", "V": "", "note": "", "timestamp": new Date().toISOString()
+            };
+
+            try {
+                await addDoc(opsColl, op);
+                document.getElementById('formOperation').reset();
+                document.getElementById('date').valueAsDate = new Date();
+                showScreen('historique');
+            } catch (err) { alert("Erreur lors de l'envoi"); }
+        });
+
+        // --- ACTIONS FLUX ---
+        window.toggleField = async (id, field, current) => {
+            const newVal = current === "x" ? "" : "x";
+            await updateDoc(doc(db, "operations", id), { [field]: newVal });
+        };
+
+        window.supprOp = async (id) => {
+            if(confirm("Supprimer définitivement ?")) await deleteDoc(doc(db, "operations", id));
+        };
+
+        // --- CALCULS GLOBAUX ---
+        window.calculerTout = async () => {
             const snap = await getDocs(opsColl);
-            let totalR = 0;
-            let totalD = 0;
-
-            snap.forEach(doc => {
-                const data = doc.data();
-                totalR += cleanNum(data["Recettes"]);
-                totalD += cleanNum(data["Dépenses"]);
+            let totalR = 0; let totalD = 0;
+            snap.forEach(d => {
+                totalR += cleanVal(d.data()["Recettes"]);
+                totalD += cleanVal(d.data()["Dépenses"]);
             });
-
             const solde = totalR - totalD;
-            
-            // Mise à jour Affichage
-            const fmt = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
             document.getElementById('repRec').innerText = fmt(totalR);
             document.getElementById('repDep').innerText = fmt(totalD);
             document.getElementById('repSolde').innerText = fmt(solde);
             
-            // Mise à jour Header
+            // Mise à jour bannière
             document.getElementById('headRecette').innerText = fmt(totalR);
             document.getElementById('headDepense').innerText = fmt(totalD);
             document.getElementById('headSolde').innerText = fmt(solde);
         };
 
-        window.showScreen = (n) => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('screen-' + n).classList.add('active');
-            if(n === 'rapport') lancerCalculTotal();
-        };
+        // --- HISTORIQUE TEMPS RÉEL (Les 50 derniers) ---
+        const q = query(opsColl, orderBy("Date", "desc"), limit(50));
+        onSnapshot(q, (snap) => {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            snap.forEach((ds) => {
+                const op = ds.data();
+                const id = ds.id;
+                const d = cleanVal(op["Dépenses"]);
+                const r = cleanVal(op["Recettes"]);
+                const isDep = d > 0;
+                
+                const card = document.createElement('div');
+                card.className = `op-card ${isDep ? 'depense' : 'recette'}`;
+                card.innerHTML = `
+                    <div class="op-main">
+                        <small style="color:#999">${op.Date}</small><br>
+                        <span class="op-name">${op.Tiers}</span>
+                        <div style="margin-top:6px;">
+                            <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField('${id}','P','${op.P}')">C</button>
+                            <button class="btn-toggle ${op.V === 'x' ? 'active-v' : ''}" onclick="toggleField('${id}','V','${op.V}')">D</button>
+                        </div>
+                    </div>
+                    <div class="op-amt" style="color: ${isDep ? 'var(--danger)' : 'var(--success)'}">
+                        ${fmt(isDep ? -d : r)}
+                    </div>
+                    <button class="btn-del" onclick="supprOp('${id}')">×</button>
+                `;
+                list.appendChild(card);
+            });
+        });
 
-        // Lancement initial
-        lancerCalculTotal();
+        // Initialisation
+        document.getElementById('date').valueAsDate = new Date();
+        calculerTout();
     </script>
 </body>
 </html>
