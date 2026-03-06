@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BANK - v12</title>
+    <title>BANK - v13</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --bg: #f0f2f5; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --danger: #e74c3c; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        
+
         .header-banner { background: #2c3e50; color: white; position: fixed; top: 0; left: 0; right: 0; height: 65px; z-index: 1000; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .recap-item { text-align: center; }
         .recap-val { font-size: 15px; font-weight: bold; display: block; }
         .recap-label { font-size: 8px; text-transform: uppercase; color: #bdc3c7; letter-spacing: 1px; }
 
         .tab-bar { position: fixed; top: 65px; left: 0; right: 0; height: 45px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; z-index: 999; }
-        .tab-btn { flex: 1; border: none; background: none; font-size: 12px; font-weight: 700; color: #7f8c8d; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .tab-btn { flex: 1; border: none; background: none; font-size: 11px; font-weight: 700; color: #7f8c8d; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
         .screen { display: none; width: 100%; padding: 130px 15px 30px 15px; box-sizing: border-box; flex-direction: column; align-items: center; }
@@ -25,7 +25,7 @@
         .form-group { margin-bottom: 12px; }
         label { font-size: 11px; font-weight: 600; color: #7f8c8d; margin-bottom: 4px; display: block; text-align: center; text-transform: uppercase; }
         input, select, textarea { width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 12px; background: #fafafa; font-size: 14px; text-align: center; font-family: inherit; outline: none; }
-        
+
         .segmented-control { display: flex; background: #eee; padding: 3px; border-radius: 12px; margin-bottom: 8px; }
         .segmented-control label { flex: 1; text-align: center; padding: 8px; cursor: pointer; border-radius: 10px; font-size: 12px; color: #666; margin: 0; transition: 0.2s; }
         .segmented-control input[type="radio"] { display: none; }
@@ -48,7 +48,7 @@
         .op-main { flex: 1; margin-left: 8px; }
         .op-name { font-weight: 700; font-size: 13px; color: var(--primary); }
         .op-amt { font-weight: 800; font-size: 14px; min-width: 90px; text-align: right; }
-        
+
         .btn-toggle { background: #eee; color: #999; border: none; padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; margin-right: 5px; }
         .btn-toggle.active-p { background: var(--accent); color: white; }
         .btn-toggle.active-v { background: #f1c40f; color: #2c3e50; }
@@ -62,6 +62,30 @@
         .total-val.rec { color: var(--success); }
         .total-lbl { font-size: 9px; text-transform: uppercase; color: #7f8c8d; }
 
+        /* --- ENVELOPPES --- */
+        .env-header { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .env-header-title { font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+        .env-reset-info { font-size: 10px; color: #7f8c8d; }
+        .env-card { background: white; border-radius: 15px; margin-bottom: 10px; width: 100%; max-width: 400px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; box-sizing: border-box; }
+        .env-card-inner { padding: 12px 15px 8px 15px; display: flex; align-items: center; gap: 10px; }
+        .env-nom { font-weight: 700; font-size: 13px; color: var(--primary); flex: 1; text-transform: capitalize; }
+        .env-amounts { text-align: right; }
+        .env-reste { font-size: 15px; font-weight: 800; }
+        .env-reste.ok { color: var(--success); }
+        .env-reste.warn { color: #f39c12; }
+        .env-reste.over { color: var(--danger); }
+        .env-montant { font-size: 10px; color: #7f8c8d; }
+        .env-bar-wrap { height: 5px; background: #eee; width: 100%; }
+        .env-bar { height: 5px; border-radius: 0 3px 3px 0; transition: width 0.4s; }
+        .env-bar.ok { background: var(--success); }
+        .env-bar.warn { background: #f39c12; }
+        .env-bar.over { background: var(--danger); width: 100% !important; }
+        .env-mult-wrap { padding: 6px 15px 10px 15px; display: flex; align-items: center; gap: 8px; }
+        .env-mult-label { font-size: 10px; color: #7f8c8d; font-weight: 600; text-transform: uppercase; }
+        .env-mult-btn { width: 30px; height: 30px; border-radius: 8px; border: 2px solid #e0e0e0; background: #fafafa; font-size: 13px; font-weight: 700; cursor: pointer; color: #7f8c8d; transition: 0.2s; }
+        .env-mult-btn.active { border-color: var(--accent); background: var(--accent); color: white; }
+        .env-section-title { width: 100%; max-width: 400px; font-size: 10px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 5px 5px; }
+
         .version { position: fixed; bottom: 8px; right: 12px; font-size: 10px; color: #cbd5e0; font-weight: bold; }
     </style>
 </head>
@@ -74,9 +98,10 @@
     </div>
 
     <div class="tab-bar">
-        <button class="tab-btn active" id="tab-saisie" onclick="showScreen('saisie')">✏️ Saisie</button>
-        <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">🕐 Historique</button>
-        <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">📊 Rapport</button>
+        <button class="tab-btn active" id="tab-saisie" onclick="showScreen('saisie')">Saisie</button>
+        <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">Historique</button>
+        <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">Rapport</button>
+        <button class="tab-btn" id="tab-enveloppes" onclick="showScreen('enveloppes')">Enveloppes</button>
     </div>
 
     <div class="screen active" id="screen-saisie">
@@ -129,16 +154,24 @@
                     <select id="r-type"><option value="tous">Tous</option><option value="depense">Dépenses</option><option value="recette">Recettes</option></select>
                 </div>
             </div>
-            <button id="btnRapport" onclick="lancerRapport()">📊 Générer le rapport</button>
+            <button id="btnRapport" onclick="lancerRapport()">Générer le rapport</button>
         </div>
         <div class="rapport-results" id="rapport-results"></div>
     </div>
 
-    <div class="version">VERSION 12</div>
+    <div class="screen" id="screen-enveloppes">
+        <div class="env-header">
+            <span class="env-header-title">Enveloppes budgétaires</span>
+            <span class="env-reset-info" id="env-reset-info"></span>
+        </div>
+        <div id="enveloppes-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
+    </div>
+
+    <div class="version">VERSION 13</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, where, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
@@ -152,6 +185,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const opsColl = collection(db, "operations");
+        const envColl = collection(db, "enveloppes");
 
         const cleanVal = (v) => {
             if (!v || v === "") return 0;
@@ -161,6 +195,171 @@
         };
 
         const fmt = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+        // --- DONNÉES PAR DÉFAUT DES ENVELOPPES ---
+        // L'ID du document Firestore correspond au nom normalisé (clé)
+        const ENVELOPPES_DEFAUT = [
+            { id: "carburant",                   nom: "carburant",                   montant: 60,     multiplicateur: null },
+            { id: "resto",                        nom: "resto",                        montant: 60,     multiplicateur: null },
+            { id: "leclerc",                      nom: "leclerc",                      montant: 500,    multiplicateur: 4    },
+            { id: "inter",                        nom: "inter",                        montant: 150,    multiplicateur: null },
+            { id: "disney",                       nom: "disney",                       montant: 6.99,   multiplicateur: null },
+            { id: "mma",                          nom: "mma",                          montant: 16.55,  multiplicateur: null },
+            { id: "mh",                           nom: "mh",                           montant: 730.97, multiplicateur: null },
+            { id: "malakoff",                     nom: "malakoff",                     montant: 45.96,  multiplicateur: null },
+            { id: "cofidis",                      nom: "cofidis",                      montant: 32.08,  multiplicateur: null },
+            { id: "youtube",                      nom: "youtube",                      montant: 12.99,  multiplicateur: null },
+            { id: "paypal",                       nom: "paypal",                       montant: 11.49,  multiplicateur: null },
+            { id: "virement vers caisse epargne", nom: "virement vers caisse epargne", montant: 25,     multiplicateur: null },
+            { id: "ai",                           nom: "ai",                           montant: 21.60,  multiplicateur: null },
+        ];
+
+        // --- INITIALISATION DES ENVELOPPES ---
+        const initEnveloppes = async () => {
+            const snap = await getDocs(envColl);
+            const existingIds = new Set(snap.docs.map(d => d.id));
+            for (const env of ENVELOPPES_DEFAUT) {
+                if (!existingIds.has(env.id)) {
+                    await setDoc(doc(db, "enveloppes", env.id), {
+                        nom: env.nom,
+                        montant: env.montant,
+                        reste: env.montant,
+                        multiplicateur: env.multiplicateur
+                    });
+                }
+            }
+        };
+
+        // --- REMISE À ZÉRO MENSUELLE ---
+        // On stocke le dernier mois de remise à zéro dans localStorage (format "YYYY-M")
+        const checkMonthlyReset = async () => {
+            const now = new Date();
+            const currentKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+            const lastReset = localStorage.getItem('envLastReset');
+            if (lastReset !== currentKey) {
+                const snap = await getDocs(envColl);
+                for (const docSnap of snap.docs) {
+                    await updateDoc(doc(db, "enveloppes", docSnap.id), { reste: docSnap.data().montant });
+                }
+                localStorage.setItem('envLastReset', currentKey);
+                const resetDate = document.getElementById('env-reset-info');
+                if (resetDate) resetDate.textContent = `Remis à zéro ce mois-ci`;
+            } else {
+                const now2 = new Date();
+                const resetDate = document.getElementById('env-reset-info');
+                if (resetDate) {
+                    const mois = now2.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+                    resetDate.textContent = `Mois en cours : ${mois}`;
+                }
+            }
+        };
+
+        // --- DÉDUCTION D'ENVELOPPE ---
+        // Compare le tiers saisi avec les noms d'enveloppes (insensible à la casse, recherche dans le tiers)
+        const deduireEnveloppe = async (tiers, montantOp) => {
+            const tiersNorm = tiers.toLowerCase().trim();
+            const snap = await getDocs(envColl);
+            for (const docSnap of snap.docs) {
+                const data = docSnap.data();
+                const nomEnv = data.nom.toLowerCase().trim();
+                // Match si le tiers contient le nom de l'enveloppe ou l'inverse
+                if (tiersNorm.includes(nomEnv) || nomEnv.includes(tiersNorm)) {
+                    const newReste = parseFloat((data.reste - montantOp).toFixed(2));
+                    await updateDoc(doc(db, "enveloppes", docSnap.id), { reste: newReste });
+                    return data.nom; // retourne le nom de l'enveloppe trouvée
+                }
+            }
+            return null;
+        };
+
+        // --- AFFICHAGE DES ENVELOPPES ---
+        let enveloppesData = {}; // cache local
+
+        const renderEnveloppes = (docs) => {
+            const list = document.getElementById('enveloppes-list');
+            if (!list) return;
+
+            enveloppesData = {};
+            docs.forEach(d => { enveloppesData[d.id] = { ...d.data(), docId: d.id }; });
+
+            // Trier dans l'ordre défini
+            const orderedIds = ENVELOPPES_DEFAUT.map(e => e.id);
+            const sorted = orderedIds.map(id => enveloppesData[id]).filter(Boolean);
+
+            // Groupes
+            const groupeTransport = ["carburant", "resto"];
+            const groupeCourses = ["leclerc", "inter"];
+            const groupeAbonnements = ["disney", "mma", "mh", "malakoff", "cofidis", "youtube", "paypal", "virement vers caisse epargne", "ai"];
+
+            const renderGroupe = (titre, ids) => {
+                const items = ids.map(id => enveloppesData[id]).filter(Boolean);
+                if (!items.length) return '';
+                return `<div class="env-section-title">${titre}</div>` + items.map(env => renderEnvCard(env)).join('');
+            };
+
+            list.innerHTML =
+                renderGroupe('Transport & Loisirs', groupeTransport) +
+                renderGroupe('Courses', groupeCourses) +
+                renderGroupe('Abonnements & Fixes', groupeAbonnements);
+        };
+
+        const renderEnvCard = (env) => {
+            const reste = env.reste ?? env.montant;
+            const montant = env.montant;
+            const ratio = montant > 0 ? Math.max(0, Math.min(1, reste / montant)) : 0;
+            const pct = Math.round(ratio * 100);
+
+            let stateClass = 'ok';
+            if (reste < 0) stateClass = 'over';
+            else if (ratio < 0.25) stateClass = 'warn';
+
+            let multHtml = '';
+            if (env.multiplicateur !== null && env.multiplicateur !== undefined) {
+                const mult = env.multiplicateur;
+                multHtml = `
+                    <div class="env-mult-wrap">
+                        <span class="env-mult-label">× 125€ :</span>
+                        ${[3,4,5].map(m => `
+                            <button class="env-mult-btn ${m === mult ? 'active' : ''}"
+                                onclick="setMultiplicateur('${env.docId}', ${m})">${m}</button>
+                        `).join('')}
+                        <span style="font-size:10px; color:#7f8c8d; margin-left:4px;">= ${fmt(mult * 125)}</span>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="env-card">
+                    <div class="env-card-inner">
+                        <div class="env-nom">${env.nom}</div>
+                        <div class="env-amounts">
+                            <div class="env-reste ${stateClass}">${fmt(reste)}</div>
+                            <div class="env-montant">/ ${fmt(montant)}</div>
+                        </div>
+                    </div>
+                    <div class="env-bar-wrap">
+                        <div class="env-bar ${stateClass}" style="width:${pct}%"></div>
+                    </div>
+                    ${multHtml}
+                </div>
+            `;
+        };
+
+        // --- CHANGEMENT DU MULTIPLICATEUR LECLERC ---
+        window.setMultiplicateur = async (docId, mult) => {
+            const env = enveloppesData[docId];
+            if (!env) return;
+            const oldMontant = env.montant;
+            const newMontant = mult * 125;
+            // Recalcule le reste en conservant la même dépense : reste = newMontant - (oldMontant - reste)
+            const depenseActuelle = oldMontant - (env.reste ?? oldMontant);
+            const newReste = parseFloat((newMontant - depenseActuelle).toFixed(2));
+            await updateDoc(doc(db, "enveloppes", docId), {
+                multiplicateur: mult,
+                montant: newMontant,
+                reste: newReste
+            });
+        };
 
         // --- AUTOCOMPLETE TIERS ---
         const updateTiersList = (docs) => {
@@ -211,19 +410,26 @@
         document.getElementById('formOperation').addEventListener('submit', async (e) => {
             e.preventDefault();
             const type = document.querySelector('input[name="typeOp"]:checked').value;
-            const montant = parseFloat(document.getElementById('montant').value);
+            const montantVal = parseFloat(document.getElementById('montant').value);
+            const tiersVal = document.getElementById('tiers').value;
 
             const op = {
                 "Date": document.getElementById('date').value,
-                "Tiers": document.getElementById('tiers').value,
-                "Dépenses": type === 'depense' ? montant : "",
-                "Recettes": type === 'recette' ? montant : "",
+                "Tiers": tiersVal,
+                "Dépenses": type === 'depense' ? montantVal : "",
+                "Recettes": type === 'recette' ? montantVal : "",
                 "E/C": document.querySelector('input[name="compte"]:checked').value,
                 "moyen de paiement": "",
                 "P": "", "V": "", "note": "", "timestamp": new Date().toISOString()
             };
 
             await addDoc(opsColl, op);
+
+            // Déduire de l'enveloppe si c'est une dépense
+            if (type === 'depense') {
+                await deduireEnveloppe(tiersVal, montantVal);
+            }
+
             document.getElementById('formOperation').reset();
             document.getElementById('date').valueAsDate = new Date();
             showScreen('historique');
@@ -234,7 +440,7 @@
         window.lancerRapport = async () => {
             const resDiv = document.getElementById('rapport-results');
             resDiv.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:12px;">Chargement...</p>';
-            
+
             const debut = document.getElementById('r-debut').value;
             const fin = document.getElementById('r-fin').value;
             const compte = document.getElementById('r-compte').value;
@@ -255,7 +461,7 @@
                 if (fin && opDate > fin) return;
                 if (compte !== 'tous' && opCompte !== compte) return;
                 if (fournisseursTags.length > 0 && !fournisseursTags.some(tag => opTiers.includes(tag.toLowerCase()))) return;
-                
+
                 if (typeReq === 'tous' || typeReq === 'depense') tDep += d;
                 if (typeReq === 'tous' || typeReq === 'recette') tRec += r;
             });
@@ -279,7 +485,7 @@
 
         const updateHeader = async () => {
             const snap = await getDocs(opsColl);
-            updateTiersList(snap.docs); // Mise à jour de la liste auto-complétion
+            updateTiersList(snap.docs);
             let r = 0; let d = 0;
             snap.forEach(doc => {
                 r += cleanVal(doc.data()["Recettes"]);
@@ -313,12 +519,21 @@
             }).join('');
         });
 
+        // Écoute temps réel des enveloppes
+        onSnapshot(query(envColl), (snap) => {
+            renderEnveloppes(snap.docs);
+        });
+
+        // --- INITIALISATION ---
         const today = new Date();
         document.getElementById('date').valueAsDate = today;
         document.getElementById('r-fin').valueAsDate = today;
         const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
         document.getElementById('r-debut').valueAsDate = lastYear;
+
         updateHeader();
+        await initEnveloppes();
+        await checkMonthlyReset();
     </script>
 </body>
 </html>
