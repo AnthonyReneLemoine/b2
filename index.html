@@ -199,9 +199,12 @@
     </div>
 
     <div class="screen" id="screen-historique">
-        <div id="hist-toggle-bar" style="width:100%; max-width:400px; display:flex; justify-content:flex-end; gap:8px; padding:10px 5px 4px; box-sizing:border-box;">
-            <button class="hist-toggle" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
-            <button class="hist-toggle" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
+        <div id="hist-toggle-bar" style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 5px 4px; box-sizing:border-box;">
+            <input type="text" id="hist-search" placeholder="🔍 Fournisseur ou montant…" oninput="onHistSearch()" style="flex:1; min-width:160px; max-width:320px; padding:7px 12px; border:1px solid #e0e0e0; border-radius:20px; font-size:12px; background:#fff; outline:none;">
+            <div style="display:flex; gap:8px; margin-left:auto;">
+                <button class="hist-toggle" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
+                <button class="hist-toggle" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
+            </div>
         </div>
         <div id="history-list" style="width: 100%;"></div>
     </div>
@@ -855,12 +858,23 @@
         let lastHistDocs = [];
         let filterMoisCourant = false;
         let filterMasquerC = false;
+        let filterSearch = '';
 
         const renderHistory = (docs) => {
             const now = new Date();
             const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             let filtered = filterMoisCourant ? docs.filter(ds => (ds.data()["Date"] || "").startsWith(monthPrefix)) : docs;
             if (filterMasquerC) filtered = filtered.filter(ds => ds.data().P !== 'x');
+            if (filterSearch) {
+                const q = filterSearch.toLowerCase();
+                filtered = filtered.filter(ds => {
+                    const op = ds.data();
+                    const tiers = (op.Tiers || '').toLowerCase();
+                    const dep = cleanVal(op["Dépenses"]); const rec = cleanVal(op["Recettes"]);
+                    const amt = (dep > 0 ? dep : rec).toFixed(2);
+                    return tiers.includes(q) || amt.includes(q);
+                });
+            }
             const list = document.getElementById('history-list');
             list.innerHTML = filtered.map(ds => {
                 const op = ds.data(); const id = ds.id;
@@ -883,6 +897,11 @@
                     </div>
                 `;
             }).join('');
+        };
+
+        window.onHistSearch = () => {
+            filterSearch = document.getElementById('hist-search').value.trim();
+            renderHistory(lastHistDocs);
         };
 
         window.toggleMasquerC = () => {
