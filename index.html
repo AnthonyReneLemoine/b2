@@ -199,8 +199,9 @@
     </div>
 
     <div class="screen" id="screen-historique">
-        <div id="hist-toggle-bar" style="width:100%; max-width:400px; display:flex; justify-content:flex-end; padding:10px 5px 4px; box-sizing:border-box;">
+        <div id="hist-toggle-bar" style="width:100%; max-width:400px; display:flex; justify-content:flex-end; gap:8px; padding:10px 5px 4px; box-sizing:border-box;">
             <button class="hist-toggle" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
+            <button class="hist-toggle" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
         </div>
         <div id="history-list" style="width: 100%;"></div>
     </div>
@@ -853,11 +854,13 @@
 
         let lastHistDocs = [];
         let filterMoisCourant = false;
+        let filterMasquerC = false;
 
         const renderHistory = (docs) => {
             const now = new Date();
             const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            const filtered = filterMoisCourant ? docs.filter(ds => (ds.data()["Date"] || "").startsWith(monthPrefix)) : docs;
+            let filtered = filterMoisCourant ? docs.filter(ds => (ds.data()["Date"] || "").startsWith(monthPrefix)) : docs;
+            if (filterMasquerC) filtered = filtered.filter(ds => ds.data().P !== 'x');
             const list = document.getElementById('history-list');
             list.innerHTML = filtered.map(ds => {
                 const op = ds.data(); const id = ds.id;
@@ -880,6 +883,12 @@
                     </div>
                 `;
             }).join('');
+        };
+
+        window.toggleMasquerC = () => {
+            filterMasquerC = !filterMasquerC;
+            document.getElementById('toggleMasquerC').classList.toggle('active', filterMasquerC);
+            renderHistory(lastHistDocs);
         };
 
         window.toggleHistMois = () => {
