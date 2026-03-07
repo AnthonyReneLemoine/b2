@@ -63,7 +63,7 @@
 
         /* --- HISTORIQUE MULTI-COLONNES (grands écrans) --- */
         @media (min-width: 900px) {
-            #screen-historique { max-width: 1400px; width: 100%; align-self: center; }
+            #screen-historique { max-width: 1600px; width: 100%; align-self: center; padding-left: 20px; padding-right: 20px; }
             #history-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: start; }
             #history-list .op-card { max-width: none; margin-bottom: 0; }
             #hist-toggle-bar { max-width: none; width: 100%; }
@@ -72,6 +72,7 @@
             #history-list { grid-template-columns: repeat(4, 1fr); }
         }
         @media (min-width: 1700px) {
+            #screen-historique { max-width: 1900px; }
             #history-list { grid-template-columns: repeat(5, 1fr); }
         }
         .op-card.depense { border-left-color: var(--danger); }
