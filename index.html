@@ -918,9 +918,16 @@
             }).join('');
         };
 
-        window.onHistSearch = () => {
+        window.onHistSearch = async () => {
             filterSearch = document.getElementById('hist-search').value.trim();
-            renderHistory(lastHistDocs);
+            if (filterSearch) {
+                // Recherche sur toute la base de données
+                const snap = await getDocs(query(opsColl, orderBy("Date", "desc")));
+                renderHistory(snap.docs);
+            } else {
+                // Retour à l'affichage limité aux 40 dernières
+                renderHistory(lastHistDocs);
+            }
         };
 
         window.toggleMasquerC = () => {
