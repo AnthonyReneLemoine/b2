@@ -79,6 +79,7 @@
         .op-card.recette { border-left-color: var(--success); }
         .op-main { flex: 1; margin-left: 8px; }
         .op-name { font-weight: 700; font-size: 13px; color: var(--primary); }
+        .op-note { display: block; color: #aaa; font-style: italic; font-size: 11px; margin-top: 2px; }
         .op-amt { font-weight: 800; font-size: 14px; min-width: 90px; text-align: right; }
 
         .btn-toggle { background: #eee; color: #999; border: none; padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; margin-right: 5px; }
@@ -905,7 +906,7 @@
                         <div class="op-main">
                             <small style="color:#999">${op.Date}</small><br>
                             <span class="op-name">${op.Tiers}</span>
-                            ${op.note ? `<small style="color:#aaa;font-style:italic;font-size:11px;">${op.note}</small>` : ''}
+                            ${op.note ? `<small class="op-note">${op.note}</small>` : ''}
                             <div style="margin-top:5px;">
                                 <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField('${id}','P','${op.P}')">C</button>
                                 <button class="btn-toggle ${op.V === 'x' ? 'active-v' : ''}" onclick="toggleField('${id}','V','${op.V}')">D</button>
