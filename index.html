@@ -204,8 +204,8 @@
         <div id="hist-toggle-bar" style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 5px 4px; box-sizing:border-box;">
             <input type="text" id="hist-search" placeholder="🔍 Fournisseur ou montant…" oninput="onHistSearch()" style="flex:1; min-width:160px; max-width:320px; padding:7px 12px; border:1px solid #e0e0e0; border-radius:20px; font-size:12px; background:#fff; outline:none;">
             <div style="display:flex; gap:8px; margin-left:auto;">
-                <button class="hist-toggle" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
-                <button class="hist-toggle" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
+                <button class="hist-toggle active" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
+                <button class="hist-toggle active" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
             </div>
         </div>
         <div id="history-list" style="width: 100%;"></div>
@@ -877,8 +877,8 @@
         };
 
         let lastHistDocs = [];
-        let filterMoisCourant = false;
-        let filterMasquerC = false;
+        let filterMoisCourant = true;
+        let filterMasquerC = true;
         let filterSearch = '';
 
         const renderHistory = (docs) => {
