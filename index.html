@@ -464,13 +464,16 @@
             }
         };
 
-        // Marque les enveloppes du mois précédent (lastResetMonth mis à jour)
+        // Remet les enveloppes à zéro au changement de mois (lastResetMonth + reste = montant)
         const checkMonthlyReset = async () => {
             const snap = await getDocs(envColl);
             const key = currentMonthKey();
             for (const docSnap of snap.docs) {
                 if (docSnap.data().lastResetMonth !== key) {
-                    await updateDoc(doc(db, "enveloppes", docSnap.id), { lastResetMonth: key });
+                    await updateDoc(doc(db, "enveloppes", docSnap.id), {
+                        lastResetMonth: key,
+                        reste: docSnap.data().montant
+                    });
                 }
             }
         };
