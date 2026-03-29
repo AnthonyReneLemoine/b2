@@ -958,6 +958,7 @@
             snap.docs.forEach(ds => { opsCache[ds.id] = ds.data(); });
             lastHistDocs = snap.docs;
             renderHistory(snap.docs);
+            updateHeader();
         });
 
         // Écoute temps réel des enveloppes (sync tous appareils)
