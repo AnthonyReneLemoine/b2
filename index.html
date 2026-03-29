@@ -87,6 +87,7 @@
         .hist-toggle.active { background: var(--accent); color: white; }
         .btn-toggle.active-p { background: var(--accent); color: white; }
         .btn-toggle.active-v { background: #f1c40f; color: #2c3e50; }
+        .btn-toggle.active-x { background: #e17055; color: white; }
         .btn-del  { background: #fff5f5; color: var(--danger); border: none; width: 30px; height: 30px; border-radius: 10px; cursor: pointer; font-size: 20px; }
         .btn-edit { background: #eaf4fb; color: var(--accent); border: none; width: 30px; height: 30px; border-radius: 10px; cursor: pointer; font-size: 14px; margin-right: 4px; }
 
@@ -489,6 +490,7 @@
             const monthOps = [];
             opsSnap.forEach(d => {
                 const data = d.data();
+                if (data.X === 'x') return;
                 const dep = cleanVal(data["Dépenses"]);
                 if (dep > 0 && data["Date"] && data["Date"].startsWith(monthPrefix)) {
                     monthOps.push({ tiers: (data["Tiers"] || "").toLowerCase().trim(), montant: dep });
@@ -825,6 +827,7 @@
             updateTiersList(snap.docs);
             let r = 0; let d = 0;
             snap.forEach(doc => {
+                if (doc.data().X === 'x') return;
                 r += cleanVal(doc.data()["Recettes"]);
                 d += cleanVal(doc.data()["Dépenses"]);
             });
@@ -913,6 +916,7 @@
                             <div style="margin-top:5px;">
                                 <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField('${id}','P','${op.P}')">C</button>
                                 <button class="btn-toggle ${op.V === 'x' ? 'active-v' : ''}" onclick="toggleField('${id}','V','${op.V}')">D</button>
+                                <button class="btn-toggle ${op.X === 'x' ? 'active-x' : ''}" onclick="toggleField('${id}','X','${op.X}')" title="Exclure du solde et des enveloppes">E</button>
                             </div>
                         </div>
                         <div class="op-amt" style="color: ${isDep ? 'var(--danger)' : 'var(--success)'}">${fmt(isDep ? -dep : rec)}</div>
