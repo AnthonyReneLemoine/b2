@@ -1027,13 +1027,41 @@
             const list = document.getElementById('cartes-list');
             if (!list) return;
             const sorted = [...docs].sort((a, b) => b.data().annee - a.data().annee || b.data().mois - a.data().mois);
+
+            // --- Carte résumé : moyenne + dernier mois vs moyenne ---
+            const moyenne = docs.length ? docs.reduce((s, ds) => s + ds.data().montant, 0) / docs.length : 0;
+            const dernier = sorted[0] ? sorted[0].data() : null;
+            let resumeHtml = '';
+            if (dernier) {
+                const diff = dernier.montant - moyenne;
+                const pct  = Math.round(dernier.montant / moyenne * 100);
+                const pctColor = pct >= 100 ? '#e17055' : '#27ae60';
+                resumeHtml = `<div style="background:white; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:14px 18px; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center;">
+                    <div style="text-align:center;">
+                        <div style="font-size:11px; text-transform:uppercase; color:#999; letter-spacing:0.5px; margin-bottom:2px;">Moyenne</div>
+                        <div style="font-size:17px; font-weight:800; color:#2c3e50;">${fmt(moyenne)}</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:11px; text-transform:uppercase; color:#999; letter-spacing:0.5px; margin-bottom:2px;">Dernier mois (${MOIS_FR[dernier.mois]} ${dernier.annee})</div>
+                        <div style="font-size:17px; font-weight:800; color:var(--danger);">${fmt(dernier.montant)}</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:11px; text-transform:uppercase; color:#999; letter-spacing:0.5px; margin-bottom:2px;">Diff vs moyenne</div>
+                        <div style="font-size:17px; font-weight:800; color:${diff >= 0 ? '#e17055' : '#27ae60'};">${diff >= 0 ? '+' : ''}${fmt(diff)}</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:11px; text-transform:uppercase; color:#999; letter-spacing:0.5px; margin-bottom:2px;">% vs moyenne</div>
+                        <div style="font-size:22px; font-weight:900; color:${pctColor};">${pct} %</div>
+                    </div>
+                </div>`;
+            }
             const byYear = {};
             sorted.forEach(ds => {
                 const { annee } = ds.data();
                 if (!byYear[annee]) byYear[annee] = [];
                 byYear[annee].push(ds);
             });
-            list.innerHTML = Object.keys(byYear).sort((a,b) => b-a).map(annee => {
+            const listHtml = Object.keys(byYear).sort((a,b) => b-a).map(annee => {
                 const rows = byYear[annee].map(ds => {
                     const { mois, montant } = ds.data();
                     return `<tr>
@@ -1051,6 +1079,7 @@
                     <table style="width:100%; border-collapse:collapse;">${rows}</table>
                 </div>`;
             }).join('');
+            list.innerHTML = resumeHtml + listHtml;
         };
 
         window.supprimerCarte = async (id) => {
