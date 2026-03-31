@@ -1015,11 +1015,18 @@
         ];
 
         const initCartes = async () => {
-            const snap = await getDocs(cartesColl);
-            const existingIds = new Set(snap.docs.map(d => d.id));
-            for (const c of CARTES_HISTORIQUE) {
-                const id = `${c.annee}-${c.mois}`;
-                if (!existingIds.has(id)) await setDoc(doc(db, "cartes", id), { annee: c.annee, mois: c.mois, montant: c.montant });
+            try {
+                const snap = await getDocs(cartesColl);
+                const existingIds = new Set(snap.docs.map(d => d.id));
+                for (const c of CARTES_HISTORIQUE) {
+                    const id = `${c.annee}-${c.mois}`;
+                    if (!existingIds.has(id)) await setDoc(doc(db, "cartes", id), { annee: c.annee, mois: c.mois, montant: c.montant });
+                }
+            } catch(e) {
+                const list = document.getElementById('cartes-list');
+                if (list) list.innerHTML = `<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:14px; color:#856404; font-size:13px;">
+                    <strong>Accès Firestore refusé</strong> — Ajoute la règle pour la collection <code>cartes</code> dans la console Firebase.<br><small>${e.message}</small>
+                </div>`;
             }
         };
 
@@ -1096,7 +1103,12 @@
             e.target.reset();
         });
 
-        onSnapshot(cartesColl, (snap) => { renderCartes(snap.docs); });
+        onSnapshot(cartesColl, (snap) => { renderCartes(snap.docs); }, (err) => {
+            const list = document.getElementById('cartes-list');
+            if (list) list.innerHTML = `<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:14px; color:#856404; font-size:13px;">
+                <strong>Accès Firestore refusé</strong> — Ajoute la règle pour la collection <code>cartes</code> dans la console Firebase.<br><small>${err.message}</small>
+            </div>`;
+        });
 
         updateHeader();
         await initEnveloppes();
