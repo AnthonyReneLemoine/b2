@@ -174,6 +174,7 @@
         <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">Historique</button>
         <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">Rapport</button>
         <button class="tab-btn" id="tab-enveloppes" onclick="showScreen('enveloppes')">Enveloppes</button>
+        <button class="tab-btn" id="tab-cartes" onclick="showScreen('cartes')">Cartes du mois</button>
     </div>
 
     <div class="screen active" id="screen-saisie">
@@ -267,6 +268,33 @@
         <div id="enveloppes-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
     </div>
 
+    <div class="screen" id="screen-cartes">
+        <div style="padding:16px; max-width:480px; margin:0 auto; width:100%; box-sizing:border-box;">
+            <form id="formCartes" style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
+                <div class="form-group" style="flex:0 0 90px; margin:0;">
+                    <label>Année</label>
+                    <input type="number" id="carteAnnee" placeholder="2026" min="2000" max="2099" required style="text-align:center;">
+                </div>
+                <div class="form-group" style="flex:1; min-width:110px; margin:0;">
+                    <label>Mois</label>
+                    <select id="carteMois" required style="width:100%; padding:10px 8px; border:1px solid #ddd; border-radius:10px; font-size:14px; background:#fff;">
+                        <option value="">-- Mois --</option>
+                        <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+                        <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+                        <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+                        <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1; min-width:100px; margin:0;">
+                    <label>Montant (€)</label>
+                    <input type="number" id="carteMontant" step="0.01" placeholder="0.00" required inputmode="decimal">
+                </div>
+                <button type="submit" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:10px 16px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;">Enregistrer</button>
+            </form>
+            <div id="cartes-list"></div>
+        </div>
+    </div>
+
     <!-- Modal ajout/modification enveloppe -->
     <div class="env-modal-overlay" id="envModal">
         <div class="env-modal-box">
@@ -356,6 +384,7 @@
         const auth = getAuth(app);
         const opsColl = collection(db, "operations");
         const envColl = collection(db, "enveloppes");
+        const cartesColl = collection(db, "cartes");
 
         // --- AUTH UI ---
         const loginScreen = document.getElementById('login-screen');
@@ -974,10 +1003,77 @@
         const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
         document.getElementById('r-debut').valueAsDate = lastYear;
 
+        // --- CARTES DU MOIS ---
+        const MOIS_FR = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+        const CARTES_HISTORIQUE = [
+            {annee:2022,mois:8,montant:863.80},{annee:2022,mois:9,montant:1104.52},{annee:2022,mois:10,montant:738.40},{annee:2022,mois:11,montant:1055.76},{annee:2022,mois:12,montant:1232.77},
+            {annee:2023,mois:1,montant:1486.26},{annee:2023,mois:2,montant:702.85},{annee:2023,mois:3,montant:968.77},{annee:2023,mois:4,montant:947.59},{annee:2023,mois:5,montant:1358.20},{annee:2023,mois:6,montant:1199.94},{annee:2023,mois:7,montant:1001.89},{annee:2023,mois:8,montant:1371.20},{annee:2023,mois:9,montant:1000.12},{annee:2023,mois:10,montant:1018.40},{annee:2023,mois:11,montant:1509.46},{annee:2023,mois:12,montant:1613.23},
+            {annee:2024,mois:1,montant:1889.57},{annee:2024,mois:2,montant:981.33},{annee:2024,mois:3,montant:917.45},{annee:2024,mois:4,montant:1112.99},{annee:2024,mois:5,montant:1386.38},{annee:2024,mois:6,montant:1119.90},{annee:2024,mois:7,montant:1423.41},{annee:2024,mois:8,montant:775.78},{annee:2024,mois:9,montant:883.70},{annee:2024,mois:10,montant:1257.35},{annee:2024,mois:11,montant:1136.79},{annee:2024,mois:12,montant:1714.92},
+            {annee:2025,mois:1,montant:1391.62},{annee:2025,mois:2,montant:783.31},{annee:2025,mois:3,montant:1265.85},{annee:2025,mois:4,montant:1514.74},{annee:2025,mois:5,montant:1206.46},{annee:2025,mois:6,montant:702.67},{annee:2025,mois:7,montant:1195.95},{annee:2025,mois:8,montant:1159.46},{annee:2025,mois:9,montant:1245.15},{annee:2025,mois:10,montant:1360.15},{annee:2025,mois:11,montant:1046.12},{annee:2025,mois:12,montant:1390.44},
+            {annee:2026,mois:1,montant:1302.10},{annee:2026,mois:2,montant:1047.53}
+        ];
+
+        const initCartes = async () => {
+            const snap = await getDocs(cartesColl);
+            const existingIds = new Set(snap.docs.map(d => d.id));
+            for (const c of CARTES_HISTORIQUE) {
+                const id = `${c.annee}-${c.mois}`;
+                if (!existingIds.has(id)) await setDoc(doc(db, "cartes", id), { annee: c.annee, mois: c.mois, montant: c.montant });
+            }
+        };
+
+        const renderCartes = (docs) => {
+            const list = document.getElementById('cartes-list');
+            if (!list) return;
+            const sorted = [...docs].sort((a, b) => b.data().annee - a.data().annee || b.data().mois - a.data().mois);
+            const byYear = {};
+            sorted.forEach(ds => {
+                const { annee } = ds.data();
+                if (!byYear[annee]) byYear[annee] = [];
+                byYear[annee].push(ds);
+            });
+            list.innerHTML = Object.keys(byYear).sort((a,b) => b-a).map(annee => {
+                const rows = byYear[annee].map(ds => {
+                    const { mois, montant } = ds.data();
+                    return `<tr>
+                        <td style="padding:7px 10px; color:#555;">${MOIS_FR[mois]}</td>
+                        <td style="padding:7px 10px; text-align:right; font-weight:700; color:var(--danger);">${fmt(montant)}</td>
+                        <td style="padding:7px 6px; text-align:center;"><button onclick="supprimerCarte('${ds.id}')" style="background:none; border:none; color:#ccc; font-size:16px; cursor:pointer; line-height:1;">×</button></td>
+                    </tr>`;
+                }).join('');
+                const total = byYear[annee].reduce((s, ds) => s + ds.data().montant, 0);
+                return `<div style="margin-bottom:16px; background:white; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.07); overflow:hidden;">
+                    <div style="background:#2c3e50; color:white; padding:8px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:800; font-size:15px;">${annee}</span>
+                        <span style="font-size:12px; color:#bdc3c7;">Total : ${fmt(total)}</span>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse;">${rows}</table>
+                </div>`;
+            }).join('');
+        };
+
+        window.supprimerCarte = async (id) => {
+            if (confirm('Supprimer cette entrée ?')) await deleteDoc(doc(db, "cartes", id));
+        };
+
+        document.getElementById('formCartes').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const annee = parseInt(document.getElementById('carteAnnee').value);
+            const mois  = parseInt(document.getElementById('carteMois').value);
+            const montant = parseFloat(document.getElementById('carteMontant').value);
+            if (!annee || !mois || isNaN(montant) || montant <= 0) return;
+            await setDoc(doc(db, "cartes", `${annee}-${mois}`), { annee, mois, montant });
+            e.target.reset();
+        });
+
+        onSnapshot(cartesColl, (snap) => { renderCartes(snap.docs); });
+
         updateHeader();
         await initEnveloppes();
         await checkMonthlyReset();
         await recalculerEnveloppes(); // rattrape les opérations déjà saisies
+        await initCartes();
         } // end initApp
     </script>
 </body>
