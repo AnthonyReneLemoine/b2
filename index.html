@@ -574,9 +574,10 @@
 
             const groupeTransport   = ["carburant", "resto"];
             const groupeCourses     = ["leclerc", "inter"];
-            const groupeAbonnements = ["disney", "mma", "mh", "malakoff", "cofidis", "youtube", "paypal", "virement vers caisse epargne", "ai"];
-            const tousGroupes = new Set([...groupeTransport, ...groupeCourses, ...groupeAbonnements]);
-            const autresIds   = Object.keys(envMap).filter(id => !tousGroupes.has(id));
+            const groupeAbonnements = ["disney", "mma", "mh", "malakoff", "cofidis", "youtube", "paypal", "ai"];
+            const groupeAutresFixe  = ["virement vers caisse epargne"];
+            const tousGroupes = new Set([...groupeTransport, ...groupeCourses, ...groupeAbonnements, ...groupeAutresFixe]);
+            const autresIds   = [...groupeAutresFixe, ...Object.keys(envMap).filter(id => !tousGroupes.has(id))];
 
             const renderGroupe = (titre, ids) => {
                 const items = ids.map(id => envMap[id]).filter(Boolean);
