@@ -367,7 +367,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -478,15 +478,12 @@
 
         // Crée les documents manquants au premier lancement
         const initEnveloppes = async () => {
-            const [snap, suppressedSnap] = await Promise.all([
-                getDocs(envColl),
-                getDoc(doc(db, "config", "suppressedEnvelopes"))
-            ]);
+            const snap = await getDocs(envColl);
+            // On considère comme "existant" tout doc présent, même marqué deleted=true
             const existingIds = new Set(snap.docs.map(d => d.id));
-            const suppressedIds = new Set(suppressedSnap.exists() ? (suppressedSnap.data().ids || []) : []);
             const key = currentMonthKey();
             for (const env of ENVELOPPES_DEFAUT) {
-                if (!existingIds.has(env.id) && !suppressedIds.has(env.id)) {
+                if (!existingIds.has(env.id)) {
                     await setDoc(doc(db, "enveloppes", env.id), {
                         nom: env.nom,
                         montant: env.montant,
@@ -558,6 +555,7 @@
         const renderEnveloppes = (docs) => {
             const list = document.getElementById('enveloppes-list');
             if (!list) return;
+            docs = docs.filter(d => !d.data().deleted);
             const envMap = Object.fromEntries(docs.map(d => [d.id, { ...d.data(), docId: d.id }]));
 
             // Calcul des totaux
@@ -718,12 +716,14 @@
             const envDoc = envSnapshot.find(d => d.id === docId);
             const nom = envDoc ? envDoc.data().nom : docId;
             if (!confirm(`Supprimer l'enveloppe "${nom}" ?`)) return;
-            // Si c'est une enveloppe par défaut, on mémorise la suppression pour éviter sa recréation
             const isDefault = ENVELOPPES_DEFAUT.some(e => e.id === docId);
             if (isDefault) {
-                await setDoc(doc(db, "config", "suppressedEnvelopes"), { ids: arrayUnion(docId) }, { merge: true });
+                // Pour les enveloppes par défaut : on marque deleted=true au lieu de supprimer
+                // pour éviter que initEnveloppes() la recrée au prochain chargement
+                await updateDoc(doc(db, "enveloppes", docId), { deleted: true });
+            } else {
+                await deleteDoc(doc(db, "enveloppes", docId));
             }
-            await deleteDoc(doc(db, "enveloppes", docId));
         };
 
         // --- AUTOCOMPLETE TIERS ---
