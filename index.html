@@ -367,7 +367,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -478,11 +478,15 @@
 
         // Crée les documents manquants au premier lancement
         const initEnveloppes = async () => {
-            const snap = await getDocs(envColl);
+            const [snap, suppressedSnap] = await Promise.all([
+                getDocs(envColl),
+                getDoc(doc(db, "config", "suppressedEnvelopes"))
+            ]);
             const existingIds = new Set(snap.docs.map(d => d.id));
+            const suppressedIds = new Set(suppressedSnap.exists() ? (suppressedSnap.data().ids || []) : []);
             const key = currentMonthKey();
             for (const env of ENVELOPPES_DEFAUT) {
-                if (!existingIds.has(env.id)) {
+                if (!existingIds.has(env.id) && !suppressedIds.has(env.id)) {
                     await setDoc(doc(db, "enveloppes", env.id), {
                         nom: env.nom,
                         montant: env.montant,
@@ -714,6 +718,11 @@
             const envDoc = envSnapshot.find(d => d.id === docId);
             const nom = envDoc ? envDoc.data().nom : docId;
             if (!confirm(`Supprimer l'enveloppe "${nom}" ?`)) return;
+            // Si c'est une enveloppe par défaut, on mémorise la suppression pour éviter sa recréation
+            const isDefault = ENVELOPPES_DEFAUT.some(e => e.id === docId);
+            if (isDefault) {
+                await setDoc(doc(db, "config", "suppressedEnvelopes"), { ids: arrayUnion(docId) }, { merge: true });
+            }
             await deleteDoc(doc(db, "enveloppes", docId));
         };
 
