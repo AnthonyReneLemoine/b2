@@ -134,6 +134,7 @@
         .env-modal-field { margin-bottom: 14px; }
         .env-modal-field label { font-size: 10px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; display: block; margin-bottom: 5px; }
         .env-modal-field input { width: 100%; padding: 11px 14px; border: 1px solid #e0e0e0; border-radius: 12px; font-size: 14px; box-sizing: border-box; font-family: inherit; outline: none; }
+        .env-modal-field select { width: 100%; padding: 11px 14px; border: 1px solid #e0e0e0; border-radius: 12px; font-size: 14px; box-sizing: border-box; font-family: inherit; outline: none; background: white; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237f8c8d' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
         .env-modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .env-modal-cancel { flex: 1; padding: 13px; border: 1px solid #e0e0e0; border-radius: 12px; background: white; font-size: 14px; cursor: pointer; font-family: inherit; }
         .env-modal-save   { flex: 2; padding: 13px; border: none; border-radius: 12px; background: var(--success); color: white; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
@@ -303,6 +304,15 @@
             <div class="env-modal-field">
                 <label>Nom / fournisseur</label>
                 <input type="text" id="envModalNom" placeholder="ex : électricité">
+            </div>
+            <div class="env-modal-field">
+                <label>Catégorie</label>
+                <select id="envModalCategorie">
+                    <option value="transport">Transport &amp; Loisirs</option>
+                    <option value="courses">Courses</option>
+                    <option value="abonnements">Abonnements &amp; Fixes</option>
+                    <option value="banque">Banque</option>
+                </select>
             </div>
             <div class="env-modal-field">
                 <label>Budget mensuel (€)</label>
@@ -572,12 +582,20 @@
             lastEnvRestTotal = totalReste;
             updateHeadReste();
 
-            const groupeTransport   = ["carburant", "resto"];
-            const groupeCourses     = ["leclerc", "inter"];
-            const groupeAbonnements = ["disney", "mma", "mh", "malakoff", "cofidis", "youtube", "paypal", "ai"];
-            const groupeAutresFixe  = ["virement vers caisse epargne"];
-            const tousGroupes = new Set([...groupeTransport, ...groupeCourses, ...groupeAbonnements, ...groupeAutresFixe]);
-            const autresIds   = [...groupeAutresFixe, ...Object.keys(envMap).filter(id => !tousGroupes.has(id))];
+            const CATEGORIES = [
+                { key: 'transport',   titre: 'Transport & Loisirs' },
+                { key: 'courses',     titre: 'Courses' },
+                { key: 'abonnements', titre: 'Abonnements & Fixes' },
+                { key: 'banque',      titre: 'Banque' },
+            ];
+
+            const groups = {};
+            CATEGORIES.forEach(c => { groups[c.key] = []; });
+
+            Object.entries(envMap).forEach(([id, env]) => {
+                const cat = env.categorie || inferCategorie(id);
+                (groups[cat] || groups['banque']).push(id);
+            });
 
             const renderGroupe = (titre, ids) => {
                 const items = ids.map(id => envMap[id]).filter(Boolean);
@@ -585,11 +603,7 @@
                 return `<div class="env-section-title">${titre}</div>` + items.map(renderEnvCard).join('');
             };
 
-            list.innerHTML =
-                renderGroupe('Transport & Loisirs', groupeTransport) +
-                renderGroupe('Courses', groupeCourses) +
-                renderGroupe('Abonnements & Fixes', groupeAbonnements) +
-                renderGroupe('Banque', autresIds);
+            list.innerHTML = CATEGORIES.map(c => renderGroupe(c.titre, groups[c.key])).join('');
         };
 
         const renderEnvCard = (env) => {
@@ -654,6 +668,13 @@
         // --- GESTION CRUD ENVELOPPES ---
         let envSnapshot = []; // cache des docs courants (mis à jour par onSnapshot)
 
+        const inferCategorie = (id) => {
+            if (["carburant", "resto"].includes(id))                                              return 'transport';
+            if (["leclerc", "inter"].includes(id))                                                return 'courses';
+            if (["disney", "mma", "mh", "malakoff", "cofidis", "youtube", "paypal", "ai"].includes(id)) return 'abonnements';
+            return 'banque';
+        };
+
         window.openEnvModal = (docId) => {
             const modal = document.getElementById('envModal');
             const resteWrap = document.getElementById('envModalResteWrap');
@@ -668,13 +689,15 @@
                 document.getElementById('envModalNom').value           = data.nom;
                 document.getElementById('envModalMontant').value       = data.montant;
                 document.getElementById('envModalReste').value         = data.reste ?? data.montant;
+                document.getElementById('envModalCategorie').value     = data.categorie || inferCategorie(envDoc.id);
                 resteWrap.style.display = 'block';
             } else {
                 // Mode ajout
                 document.getElementById('envModalTitle').textContent = 'Nouvelle enveloppe';
-                document.getElementById('envModalNom').value      = '';
-                document.getElementById('envModalMontant').value  = '';
-                document.getElementById('envModalReste').value    = '';
+                document.getElementById('envModalNom').value           = '';
+                document.getElementById('envModalMontant').value       = '';
+                document.getElementById('envModalReste').value         = '';
+                document.getElementById('envModalCategorie').value     = 'banque';
                 resteWrap.style.display = 'none';
             }
             modal.classList.add('open');
@@ -685,9 +708,10 @@
         };
 
         window.saveEnvModal = async () => {
-            const docId   = document.getElementById('envModalId').value;
-            const nom     = document.getElementById('envModalNom').value.trim().toLowerCase();
-            const montant = parseFloat(document.getElementById('envModalMontant').value);
+            const docId     = document.getElementById('envModalId').value;
+            const nom       = document.getElementById('envModalNom').value.trim().toLowerCase();
+            const montant   = parseFloat(document.getElementById('envModalMontant').value);
+            const categorie = document.getElementById('envModalCategorie').value;
 
             if (!nom || isNaN(montant) || montant < 0) return;
 
@@ -697,6 +721,7 @@
                 await updateDoc(doc(db, "enveloppes", docId), {
                     nom,
                     montant,
+                    categorie,
                     reste: isNaN(reste) ? montant : reste
                 });
             } else {
@@ -705,6 +730,7 @@
                 await setDoc(doc(db, "enveloppes", newId), {
                     nom,
                     montant,
+                    categorie,
                     reste: montant,
                     multiplicateur: null,
                     lastResetMonth: currentMonthKey()
