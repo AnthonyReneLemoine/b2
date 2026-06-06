@@ -569,7 +569,7 @@
             const envMap = Object.fromEntries(docs.map(d => [d.id, { ...d.data(), docId: d.id }]));
 
             // Calcul des totaux
-            const totalReste   = docs.reduce((s, d) => s + (d.data().reste   ?? 0), 0);
+            const totalReste   = docs.reduce((s, d) => s + Math.max(0, d.data().reste ?? 0), 0);
             const totalMontant = docs.reduce((s, d) => s + (d.data().montant ?? 0), 0);
 
             // Mise à jour carte total enveloppes
