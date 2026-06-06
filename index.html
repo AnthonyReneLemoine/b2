@@ -613,11 +613,13 @@
         };
 
         const renderEnvCard = (env) => {
-            const reste   = env.reste ?? env.montant;
-            const montant = env.montant;
-            const ratio   = montant > 0 ? Math.max(0, Math.min(1, reste / montant)) : 0;
-            const pct     = Math.round(ratio * 100);
-            const stateClass = reste < 0 ? 'over' : ratio < 0.25 ? 'warn' : 'ok';
+            const reste         = env.reste ?? env.montant;
+            const montant       = env.montant;
+            const totalDepenses = montant - reste;
+            const expenseRatio  = montant > 0 ? Math.max(0, Math.min(1, totalDepenses / montant)) : 0;
+            const pct           = Math.round(expenseRatio * 100);
+            const remainRatio   = montant > 0 ? reste / montant : 0;
+            const stateClass    = reste < 0 ? 'over' : remainRatio < 0.25 ? 'warn' : 'ok';
 
             let multHtml = '';
             if (env.multiplicateur !== null && env.multiplicateur !== undefined) {
@@ -639,7 +641,7 @@
                     <div class="env-card-inner">
                         <div class="env-nom">${env.nom}</div>
                         <div class="env-amounts">
-                            <div class="env-reste ${stateClass}">${fmt(reste)}</div>
+                            <div class="env-reste ${stateClass}">${fmt(totalDepenses)}</div>
                             <div class="env-montant">/ ${fmt(montant)}</div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:4px; margin-left:8px;">
