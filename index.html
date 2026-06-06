@@ -209,6 +209,7 @@
             <div style="display:flex; gap:8px; margin-left:auto;">
                 <button class="hist-toggle active" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
                 <button class="hist-toggle active" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
+                <button class="hist-toggle" onclick="openBatchTiersModal()" title="Renommer un fournisseur sur toute la base">Renommer fournisseur</button>
             </div>
         </div>
         <div id="history-list" style="width: 100%;"></div>
@@ -371,13 +372,33 @@
         </div>
     </div>
 
+    <!-- Modal renommage fournisseur par lot -->
+    <div class="env-modal-overlay" id="batchTiersModal">
+        <div class="env-modal-box">
+            <p class="env-modal-title">Renommer un fournisseur</p>
+            <div class="env-modal-field">
+                <label>Fournisseur actuel (contient)</label>
+                <input type="text" id="batchTiersSrc" list="tiersList" placeholder="ex : leclerc" autocomplete="off" oninput="onBatchSrcInput()">
+            </div>
+            <div id="batchTiersPreview" style="font-size:12px; text-align:center; margin:-6px 0 12px; min-height:18px; color:#7f8c8d;"></div>
+            <div class="env-modal-field">
+                <label>Nouveau fournisseur</label>
+                <input type="text" id="batchTiersDst" list="tiersList" placeholder="ex : leclerc drive" autocomplete="off">
+            </div>
+            <div class="env-modal-actions">
+                <button class="env-modal-cancel" onclick="closeBatchTiersModal()">Annuler</button>
+                <button class="env-modal-save" id="batchTiersBtn" onclick="saveBatchTiers()">Appliquer</button>
+            </div>
+        </div>
+    </div>
+
     <div class="version">VERSION 25</div>
 
     </div><!-- /app-shell -->
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -796,6 +817,80 @@
             wrap.innerHTML = fournisseursTags.map((f, i) => `
                 <div class="tag">${f} <span class="tag-x" onclick="removeTag(${i})">×</span></div>
             `).join('');
+        };
+
+        // --- RENOMMAGE FOURNISSEUR PAR LOT ---
+        let batchPreviewTimer;
+
+        window.openBatchTiersModal = () => {
+            document.getElementById('batchTiersSrc').value = '';
+            document.getElementById('batchTiersDst').value = '';
+            document.getElementById('batchTiersPreview').textContent = '';
+            document.getElementById('batchTiersBtn').textContent = 'Appliquer';
+            document.getElementById('batchTiersModal').classList.add('open');
+        };
+
+        window.closeBatchTiersModal = () => {
+            document.getElementById('batchTiersModal').classList.remove('open');
+        };
+
+        window.onBatchSrcInput = () => {
+            clearTimeout(batchPreviewTimer);
+            batchPreviewTimer = setTimeout(async () => {
+                const src = document.getElementById('batchTiersSrc').value.trim().toLowerCase();
+                const preview = document.getElementById('batchTiersPreview');
+                const btn = document.getElementById('batchTiersBtn');
+                if (!src) { preview.textContent = ''; btn.textContent = 'Appliquer'; return; }
+                preview.textContent = 'Recherche…';
+                preview.style.color = '#7f8c8d';
+                const snap = await getDocs(opsColl);
+                const count = snap.docs.filter(ds => (ds.data().Tiers || '').toLowerCase().includes(src)).length;
+                if (count > 0) {
+                    preview.textContent = `${count} opération(s) concernée(s)`;
+                    preview.style.color = 'var(--accent)';
+                    btn.textContent = `Appliquer (${count})`;
+                } else {
+                    preview.textContent = 'Aucune opération trouvée';
+                    preview.style.color = 'var(--danger)';
+                    btn.textContent = 'Appliquer';
+                }
+            }, 500);
+        };
+
+        window.saveBatchTiers = async () => {
+            const src = document.getElementById('batchTiersSrc').value.trim().toLowerCase();
+            const dst = document.getElementById('batchTiersDst').value.trim().toLowerCase();
+            if (!src || !dst) { alert('Remplissez les deux champs.'); return; }
+            if (src === dst) { closeBatchTiersModal(); return; }
+
+            const snap = await getDocs(opsColl);
+            const matching = snap.docs.filter(ds => (ds.data().Tiers || '').toLowerCase().includes(src));
+            if (matching.length === 0) { alert('Aucune opération trouvée.'); return; }
+            if (!confirm(`Modifier le fournisseur de ${matching.length} opération(s) ?\n"${src}" → "${dst}"`)) return;
+
+            const btn = document.getElementById('batchTiersBtn');
+            btn.disabled = true;
+            btn.textContent = 'En cours…';
+
+            try {
+                const CHUNK = 500;
+                for (let i = 0; i < matching.length; i += CHUNK) {
+                    const batch = writeBatch(db);
+                    matching.slice(i, i + CHUNK).forEach(ds => {
+                        const newTiers = (ds.data().Tiers || '').toLowerCase().replace(src, dst);
+                        batch.update(doc(db, "operations", ds.id), { Tiers: newTiers });
+                    });
+                    await batch.commit();
+                }
+                await recalculerEnveloppes();
+                await updateHeader();
+                closeBatchTiersModal();
+            } catch (e) {
+                alert('Erreur : ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Appliquer';
+            }
         };
 
         // --- NAVIGATION ---
