@@ -856,11 +856,17 @@
             const typeReq = document.getElementById('r-type').value;
             const noteFilter = document.getElementById('r-note').value.trim().toLowerCase();
 
-            const snap = await getDocs(opsColl);
-            let tDep = 0; let tRec = 0;
+            // Inclure le texte de l'input même si non validé par Entrée
+            const inputVal = document.getElementById('r-fourn-input').value.trim();
+            const activeTags = [...fournisseursTags];
+            if (inputVal && !activeTags.includes(inputVal)) activeTags.push(inputVal);
 
-            snap.forEach(doc => {
-                const data = doc.data();
+            const snap = await getDocs(query(opsColl, orderBy("Date", "desc")));
+            let tDep = 0; let tRec = 0;
+            const matchingOps = [];
+
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
                 const d = cleanVal(data["Dépenses"]);
                 const r = cleanVal(data["Recettes"]);
                 const opDate = data["Date"];
@@ -871,12 +877,30 @@
                 if (debut && opDate < debut) return;
                 if (fin && opDate > fin) return;
                 if (compte !== 'tous' && opCompte !== compte) return;
-                if (fournisseursTags.length > 0 && !fournisseursTags.some(tag => opTiers.includes(tag.toLowerCase()))) return;
+                if (activeTags.length > 0 && !activeTags.some(tag => opTiers.includes(tag.toLowerCase()))) return;
                 if (noteFilter && !opNote.includes(noteFilter)) return;
+                if (typeReq === 'depense' && d === 0) return;
+                if (typeReq === 'recette' && r === 0) return;
 
-                if (typeReq === 'tous' || typeReq === 'depense') tDep += d;
-                if (typeReq === 'tous' || typeReq === 'recette') tRec += r;
+                tDep += d;
+                tRec += r;
+                matchingOps.push({ id: docSnap.id, data });
             });
+
+            const opsHtml = matchingOps.map(({ data }) => {
+                const d = cleanVal(data["Dépenses"]);
+                const r = cleanVal(data["Recettes"]);
+                const isDep = d > 0;
+                return `
+                    <div class="op-card ${isDep ? 'depense' : 'recette'}">
+                        <div class="op-main">
+                            <small style="color:#999">${data.Date}</small><br>
+                            <span class="op-name">${data.Tiers}</span>
+                            ${data.note ? `<small class="op-note">${data.note}</small>` : ''}
+                        </div>
+                        <div class="op-amt" style="color:${isDep ? 'var(--danger)' : 'var(--success)'}">${fmt(isDep ? -d : r)}</div>
+                    </div>`;
+            }).join('');
 
             resDiv.innerHTML = `
                 <div class="totaux-card">
@@ -884,6 +908,9 @@
                     <div class="total-item"><span class="total-val rec">+${fmt(tRec)}</span><span class="total-lbl">Recettes</span></div>
                     <div class="total-item"><span class="total-val" style="color:var(--primary)">${fmt(tRec - tDep)}</span><span class="total-lbl">Solde net</span></div>
                 </div>
+                ${matchingOps.length > 0
+                    ? `<div style="margin-top:12px;">${opsHtml}</div>`
+                    : '<p style="text-align:center;color:#7f8c8d;font-size:12px;margin-top:16px;">Aucune opération trouvée</p>'}
             `;
         };
 
@@ -1044,8 +1071,13 @@
         const today = new Date();
         document.getElementById('date').valueAsDate = today;
         document.getElementById('r-fin').valueAsDate = today;
-        const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
-        document.getElementById('r-debut').valueAsDate = lastYear;
+        const firstOpSnap = await getDocs(query(opsColl, orderBy("Date", "asc"), limit(1)));
+        if (!firstOpSnap.empty && firstOpSnap.docs[0].data()["Date"]) {
+            document.getElementById('r-debut').value = firstOpSnap.docs[0].data()["Date"];
+        } else {
+            const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
+            document.getElementById('r-debut').valueAsDate = lastYear;
+        }
 
         // --- CARTES DU MOIS ---
         const MOIS_FR = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
