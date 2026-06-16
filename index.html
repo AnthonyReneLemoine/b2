@@ -1044,8 +1044,13 @@
         const today = new Date();
         document.getElementById('date').valueAsDate = today;
         document.getElementById('r-fin').valueAsDate = today;
-        const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
-        document.getElementById('r-debut').valueAsDate = lastYear;
+        const firstOpSnap = await getDocs(query(opsColl, orderBy("Date", "asc"), limit(1)));
+        if (!firstOpSnap.empty && firstOpSnap.docs[0].data()["Date"]) {
+            document.getElementById('r-debut').value = firstOpSnap.docs[0].data()["Date"];
+        } else {
+            const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
+            document.getElementById('r-debut').valueAsDate = lastYear;
+        }
 
         // --- CARTES DU MOIS ---
         const MOIS_FR = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
