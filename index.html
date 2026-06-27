@@ -581,7 +581,7 @@
             // Pour le bandeau, les enveloppes négatives réduisent aussi le reste (déficit à compenser)
             const totalResteAvecDeficit = docs.reduce((s, d) => {
                 const r = d.data().reste ?? 0;
-                return s + (r >= 0 ? r : -r);
+                return s + (r > 0 ? r : 0);
             }, 0);
 
             // Mise à jour "reste" dans le bandeau
