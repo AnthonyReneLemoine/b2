@@ -627,7 +627,7 @@
                 multHtml = `
                     <div class="env-mult-wrap">
                         <span class="env-mult-label">× 125€ :</span>
-                        ${[3,4,5].map(m => `
+                        ${[1,2,3,4,5].map(m => `
                             <button class="env-mult-btn ${m === mult ? 'active' : ''}"
                                 onclick="setMultiplicateur('${env.docId}', ${m})">${m}</button>
                         `).join('')}
