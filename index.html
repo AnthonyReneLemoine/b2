@@ -255,8 +255,10 @@
     <div class="screen" id="screen-enveloppes">
         <div class="env-header">
             <span class="env-header-title">Enveloppes budgétaires</span>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
                 <span class="env-reset-info" id="env-reset-info"></span>
+                <button id="btn-undo-reset" onclick="undoReset()" style="display:none; background:#e67e22; color:white; border:none; border-radius:10px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer;" title="Annuler la réinitialisation">↩ Annuler</button>
+                <button onclick="resetEnveloppes()" style="background:#e74c3c; color:white; border:none; border-radius:10px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer;" title="Nouveau mois — remet chaque enveloppe à son budget complet">Nouveau mois</button>
                 <button onclick="recalculerEnveloppes()" style="background:#7f8c8d; color:white; border:none; border-radius:10px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer;" title="Recalculer depuis l'historique du mois">↺</button>
                 <button onclick="openEnvModal(null)" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:6px 13px; font-size:13px; font-weight:700; cursor:pointer;">+ Ajouter</button>
             </div>
@@ -505,18 +507,39 @@
             }
         };
 
-        // Remet les enveloppes à zéro au changement de mois (lastResetMonth + reste = montant)
-        const checkMonthlyReset = async () => {
+        // Sauvegarde pour l'annulation de réinitialisation
+        let resetBackup = null;
+
+        // Réinitialisation manuelle : remet reste = montant pour toutes les enveloppes
+        const resetEnveloppes = async () => {
+            if (!confirm('Nouveau mois — remettre toutes les enveloppes à leur budget complet ?')) return;
             const snap = await getDocs(envColl);
+            resetBackup = {};
+            for (const docSnap of snap.docs) {
+                if (docSnap.data().deleted) continue;
+                resetBackup[docSnap.id] = docSnap.data().reste ?? docSnap.data().montant;
+            }
             const key = currentMonthKey();
             for (const docSnap of snap.docs) {
-                if (docSnap.data().lastResetMonth !== key) {
-                    await updateDoc(doc(db, "enveloppes", docSnap.id), {
-                        lastResetMonth: key,
-                        reste: docSnap.data().montant
-                    });
-                }
+                if (docSnap.data().deleted) continue;
+                await updateDoc(doc(db, "enveloppes", docSnap.id), {
+                    lastResetMonth: key,
+                    reste: docSnap.data().montant
+                });
             }
+            document.getElementById('btn-undo-reset').style.display = 'inline-flex';
+        };
+
+        window.resetEnveloppes = resetEnveloppes;
+
+        // Annulation de la réinitialisation : restaure les restes précédents
+        window.undoReset = async () => {
+            if (!resetBackup) return;
+            for (const [id, reste] of Object.entries(resetBackup)) {
+                await updateDoc(doc(db, "enveloppes", id), { reste });
+            }
+            resetBackup = null;
+            document.getElementById('btn-undo-reset').style.display = 'none';
         };
 
         // Recalcule les restes en scannant toutes les dépenses du mois courant.
@@ -1191,7 +1214,6 @@
 
         updateHeader();
         await initEnveloppes();
-        await checkMonthlyReset();
         await recalculerEnveloppes(); // rattrape les opérations déjà saisies
         await initCartes();
         } // end initApp
