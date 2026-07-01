@@ -1025,9 +1025,11 @@
         let filterSearch = '';
 
         const renderHistory = (docs) => {
-            const now = new Date();
-            const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            let filtered = filterMoisCourant ? docs.filter(ds => (ds.data()["Date"] || "").startsWith(monthPrefix)) : docs;
+            const { debut, finExclusive } = currentPayPeriodRange();
+            let filtered = filterMoisCourant ? docs.filter(ds => {
+                const date = ds.data()["Date"] || "";
+                return date >= debut && date < finExclusive;
+            }) : docs;
             if (filterMasquerC) filtered = filtered.filter(ds => ds.data().P !== 'x');
             if (filterSearch) {
                 const q = filterSearch.toLowerCase();
