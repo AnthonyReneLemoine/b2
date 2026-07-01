@@ -447,9 +447,9 @@
         // =============================================
         // --- ENVELOPPES (stockées dans Firestore) ---
         // =============================================
-        // Chaque document a un champ "lastResetMonth" (format "YYYY-M").
-        // La remise à zéro se déclenche automatiquement au 1er accès du mois :
-        // si lastResetMonth != mois courant → reste = montant.
+        // Chaque document a un champ "lastResetMonth" (format "YYYY-M" de la période de paie).
+        // La remise à zéro se déclenche automatiquement au 1er accès de la période :
+        // si lastResetMonth != période de paie courante (28 du mois → 27 du mois suivant) → reste = montant.
         // Cela fonctionne sur tous les appareils via onSnapshot.
 
         const ENVELOPPES_DEFAUT = [
@@ -481,9 +481,35 @@
             }
         };
 
+        // Les enveloppes se réinitialisent le 28 du mois (jour habituel de la paie),
+        // pas le 1er calendaire. Une "période de paie" va du 28 d'un mois au 27 du suivant.
+        const PAYDAY = 28;
+
+        const payPeriodStart = (date) => {
+            let year = date.getFullYear();
+            let month = date.getMonth() + 1; // 1-12
+            if (date.getDate() < PAYDAY) {
+                month -= 1;
+                if (month === 0) { month = 12; year -= 1; }
+            }
+            return { year, month };
+        };
+
         const currentMonthKey = () => {
-            const n = new Date();
-            return `${n.getFullYear()}-${n.getMonth() + 1}`;
+            const { year, month } = payPeriodStart(new Date());
+            return `${year}-${month}`;
+        };
+
+        // Bornes [début, finExclusive[ (format "YYYY-MM-DD") de la période de paie en cours
+        const currentPayPeriodRange = () => {
+            const { year, month } = payPeriodStart(new Date());
+            const endMonth = month === 12 ? 1 : month + 1;
+            const endYear = month === 12 ? year + 1 : year;
+            const pad = (x) => String(x).padStart(2, '0');
+            return {
+                debut: `${year}-${pad(month)}-${pad(PAYDAY)}`,
+                finExclusive: `${endYear}-${pad(endMonth)}-${pad(PAYDAY)}`
+            };
         };
 
         // Crée les documents manquants au premier lancement
@@ -522,17 +548,17 @@
         // Recalcule les restes en scannant toutes les dépenses du mois courant.
         // Garantit la cohérence même pour les opérations saisies avant l'ajout de l'onglet.
         const recalculerEnveloppes = async () => {
-            const now = new Date();
-            const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const { debut, finExclusive } = currentPayPeriodRange();
 
-            // 1. Toutes les dépenses du mois courant
+            // 1. Toutes les dépenses de la période de paie en cours (28 → 27 du mois suivant)
             const opsSnap = await getDocs(opsColl);
             const monthOps = [];
             opsSnap.forEach(d => {
                 const data = d.data();
                 if (data.X === 'x') return;
                 const dep = cleanVal(data["Dépenses"]);
-                if (dep > 0 && data["Date"] && data["Date"].startsWith(monthPrefix)) {
+                const date = data["Date"];
+                if (dep > 0 && date && date >= debut && date < finExclusive) {
                     monthOps.push({ tiers: (data["Tiers"] || "").toLowerCase().trim(), montant: dep });
                 }
             });
@@ -554,8 +580,10 @@
 
             const infoEl = document.getElementById('env-reset-info');
             if (infoEl) {
-                const mois = now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
-                infoEl.textContent = `Mois : ${mois}`;
+                const finInclusive = new Date(finExclusive + 'T00:00:00');
+                finInclusive.setDate(finInclusive.getDate() - 1);
+                const fmtJour = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR');
+                infoEl.textContent = `Période : ${fmtJour(debut)} → ${finInclusive.toLocaleDateString('fr-FR')}`;
             }
         };
 
