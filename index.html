@@ -545,45 +545,54 @@
             }
         };
 
+        // Échappe les caractères spéciaux d'une chaîne pour l'utiliser telle quelle dans une regex.
+        const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
         // Recalcule les restes en scannant toutes les dépenses du mois courant.
         // Garantit la cohérence même pour les opérations saisies avant l'ajout de l'onglet.
         const recalculerEnveloppes = async () => {
-            const { debut, finExclusive } = currentPayPeriodRange();
+            try {
+                const { debut, finExclusive } = currentPayPeriodRange();
 
-            // 1. Toutes les dépenses de la période de paie en cours (28 → 27 du mois suivant)
-            const opsSnap = await getDocs(opsColl);
-            const monthOps = [];
-            opsSnap.forEach(d => {
-                const data = d.data();
-                if (data.X === 'x') return;
-                const dep = cleanVal(data["Dépenses"]);
-                const date = data["Date"];
-                if (dep > 0 && date && date >= debut && date < finExclusive) {
-                    monthOps.push({ tiers: (data["Tiers"] || "").toLowerCase().trim(), montant: dep });
-                }
-            });
-
-            // 2. Pour chaque enveloppe : reste = montant - Σ dépenses correspondantes ce mois
-            const envSnap = await getDocs(envColl);
-            for (const docSnap of envSnap.docs) {
-                const data = docSnap.data();
-                const nomNorm = data.nom.toLowerCase().trim();
-                let totalDep = 0;
-                for (const op of monthOps) {
-                    if (new RegExp("\\b" + nomNorm.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&") + "\\b").test(op.tiers)) {
-                        totalDep += op.montant;
+                // 1. Toutes les dépenses de la période de paie en cours (28 → 27 du mois suivant)
+                const opsSnap = await getDocs(opsColl);
+                const monthOps = [];
+                opsSnap.forEach(d => {
+                    const data = d.data();
+                    if (data.X === 'x') return;
+                    const dep = cleanVal(data["Dépenses"]);
+                    const date = data["Date"];
+                    if (dep > 0 && date && date >= debut && date < finExclusive) {
+                        monthOps.push({ tiers: (data["Tiers"] || "").toLowerCase().trim(), montant: dep });
                     }
-                }
-                const newReste = parseFloat((data.montant - totalDep).toFixed(2));
-                await updateDoc(doc(db, "enveloppes", docSnap.id), { reste: newReste });
-            }
+                });
 
-            const infoEl = document.getElementById('env-reset-info');
-            if (infoEl) {
-                const finInclusive = new Date(finExclusive + 'T00:00:00');
-                finInclusive.setDate(finInclusive.getDate() - 1);
-                const fmtJour = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR');
-                infoEl.textContent = `Période : ${fmtJour(debut)} → ${finInclusive.toLocaleDateString('fr-FR')}`;
+                // 2. Pour chaque enveloppe : reste = montant - Σ dépenses correspondantes ce mois
+                const envSnap = await getDocs(envColl);
+                for (const docSnap of envSnap.docs) {
+                    const data = docSnap.data();
+                    const nomNorm = data.nom.toLowerCase().trim();
+                    let totalDep = 0;
+                    const re = new RegExp("\\b" + escapeRegExp(nomNorm) + "\\b");
+                    for (const op of monthOps) {
+                        if (re.test(op.tiers)) {
+                            totalDep += op.montant;
+                        }
+                    }
+                    const newReste = parseFloat((data.montant - totalDep).toFixed(2));
+                    await updateDoc(doc(db, "enveloppes", docSnap.id), { reste: newReste });
+                }
+
+                const infoEl = document.getElementById('env-reset-info');
+                if (infoEl) {
+                    const finInclusive = new Date(finExclusive + 'T00:00:00');
+                    finInclusive.setDate(finInclusive.getDate() - 1);
+                    const fmtJour = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR');
+                    infoEl.textContent = `Période : ${fmtJour(debut)} → ${finInclusive.toLocaleDateString('fr-FR')}`;
+                }
+            } catch (e) {
+                console.error('recalculerEnveloppes error:', e);
+                alert('Erreur lors du recalcul des enveloppes : ' + e.message);
             }
         };
 
