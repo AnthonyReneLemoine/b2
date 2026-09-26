@@ -107,7 +107,10 @@
         .total-lbl { font-size: 9px; text-transform: uppercase; color: #7f8c8d; }
 
         /* --- ENVELOPPES --- */
-        .env-header { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .env-header { width: 100%; max-width: 400px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .env-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+        .env-header-actions .env-reset-info { flex-basis: 100%; }
+        #btnNouvellePaie:disabled { opacity: .55; cursor: wait !important; }
         .env-header-title { font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
         .env-reset-info { font-size: 10px; color: #7f8c8d; }
         .env-card { background: white; border-radius: 15px; margin-bottom: 10px; width: 100%; max-width: 400px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; box-sizing: border-box; }
@@ -269,9 +272,10 @@
     <div class="screen" id="screen-enveloppes">
         <div class="env-header">
             <span class="env-header-title">Enveloppes budgétaires</span>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div class="env-header-actions">
                 <span class="env-reset-info" id="env-reset-info"></span>
-                <button onclick="recalculerEnveloppes()" style="background:#7f8c8d; color:white; border:none; border-radius:10px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer;" title="Recalculer depuis l'historique du mois">↺</button>
+                <button id="btnNouvellePaie" onclick="nouvellePaie()" disabled style="background:var(--success); color:white; border:none; border-radius:10px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer;" title="Commencer une nouvelle période si la paie arrive plus tôt">Nouvelle paie</button>
+                <button onclick="recalculerEnveloppes()" style="background:#7f8c8d; color:white; border:none; border-radius:10px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer;" title="Recalculer depuis l'historique de la période">↺</button>
                 <button onclick="openEnvModal(null)" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:6px 13px; font-size:13px; font-weight:700; cursor:pointer;">+ Ajouter</button>
             </div>
         </div>
@@ -391,7 +395,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -498,6 +502,19 @@
         // Les enveloppes se réinitialisent le 28 du mois (jour habituel de la paie),
         // pas le 1er calendaire. Une "période de paie" va du 28 d'un mois au 27 du suivant.
         const PAYDAY = 28;
+        // Même collection que les enveloppes : la période est partagée entre appareils.
+        const ENV_PERIOD_ID = '__pay_period__';
+        let earlyPayPeriod = null;
+        let envelopeWork = Promise.resolve();
+        const queueEnvelopeWork = (work) => {
+            const next = envelopeWork.then(work);
+            envelopeWork = next.catch(() => {});
+            return next;
+        };
+        const localDateISO = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const readPayPeriod = (snap) => {
+            earlyPayPeriod = snap.docs.find(d => d.id === ENV_PERIOD_ID)?.data() || null;
+        };
 
         const payPeriodStart = (date) => {
             let year = date.getFullYear();
@@ -509,26 +526,98 @@
             return { year, month };
         };
 
-        const currentMonthKey = () => {
-            const { year, month } = payPeriodStart(new Date());
-            return `${year}-${month}`;
-        };
+        const currentMonthKey = () => currentPayPeriodRange().key;
 
         // Bornes [début, finExclusive[ (format "YYYY-MM-DD") de la période de paie en cours
-        const currentPayPeriodRange = () => {
-            const { year, month } = payPeriodStart(new Date());
+        const currentPayPeriodRange = (date = new Date()) => {
+            const today = localDateISO(date);
+            if (earlyPayPeriod?.debut && earlyPayPeriod?.finExclusive &&
+                today >= earlyPayPeriod.debut && today < earlyPayPeriod.finExclusive) {
+                return { ...earlyPayPeriod, key: `paie:${earlyPayPeriod.debut}`, early: true };
+            }
+            const { year, month } = payPeriodStart(date);
             const endMonth = month === 12 ? 1 : month + 1;
             const endYear = month === 12 ? year + 1 : year;
             const pad = (x) => String(x).padStart(2, '0');
             return {
                 debut: `${year}-${pad(month)}-${pad(PAYDAY)}`,
-                finExclusive: `${endYear}-${pad(endMonth)}-${pad(PAYDAY)}`
+                finExclusive: `${endYear}-${pad(endMonth)}-${pad(PAYDAY)}`,
+                key: `${year}-${month}`,
+                early: false
             };
+        };
+
+        const renderPayPeriod = () => {
+            const { debut, finExclusive, early } = currentPayPeriodRange();
+            const fin = new Date(finExclusive + 'T12:00:00');
+            fin.setDate(fin.getDate() - 1);
+            const infoEl = document.getElementById('env-reset-info');
+            if (infoEl) infoEl.textContent = `Période${early ? ' anticipée' : ''} : ${new Date(debut + 'T12:00:00').toLocaleDateString('fr-FR')} → ${fin.toLocaleDateString('fr-FR')}`;
+        };
+
+        const expensesForPeriod = (snap, debut, finExclusive) => snap.docs
+            .map(d => d.data())
+            .filter(op => op.X !== 'x' && cleanVal(op['Dépenses']) > 0 && op.Date >= debut && op.Date < finExclusive)
+            .map(op => ({ tiers: (op.Tiers || '').toLowerCase().trim(), montant: cleanVal(op['Dépenses']) }));
+
+        const remainingForEnvelope = (env, operations) => {
+            const re = new RegExp('\\b' + escapeRegExp(env.nom.toLowerCase().trim()) + '\\b');
+            const spent = operations.reduce((sum, op) => sum + (re.test(op.tiers) ? op.montant : 0), 0);
+            return parseFloat((env.montant - spent).toFixed(2));
+        };
+
+        let startingNewPay = false;
+        window.nouvellePaie = async () => {
+            if (startingNewPay) return;
+            startingNewPay = true;
+            const button = document.getElementById('btnNouvellePaie');
+            button.disabled = true;
+            try {
+                await queueEnvelopeWork(async () => {
+                    const snap = await getDocs(envColl);
+                    readPayPeriod(snap);
+                    const today = new Date();
+                    const debut = localDateISO(today);
+                    if (currentPayPeriodRange(today).early && earlyPayPeriod.debut === debut) {
+                        alert('Une nouvelle période a déjà été démarrée aujourd’hui.');
+                        return;
+                    }
+                    // La paie anticipée remplace le prochain renouvellement du 28.
+                    const end = new Date(today.getFullYear(), today.getMonth() + 1, PAYDAY, 12);
+                    const finExclusive = localDateISO(end);
+                    const fin = new Date(end);
+                    fin.setDate(fin.getDate() - 1);
+                    if (!confirm(`Commencer une nouvelle période de paie aujourd’hui, jusqu’au ${fin.toLocaleDateString('fr-FR')} inclus ?\n\nLes budgets seront renouvelés. Les dépenses datées d’aujourd’hui ou après seront déduites ; les dépenses antérieures resteront dans l’historique.\n\nIl n’y aura pas de deuxième remise à zéro le 28 de ce mois.`)) return;
+                    const operations = expensesForPeriod(await getDocs(opsColl), debut, finExclusive);
+                    const batch = writeBatch(db);
+                    const period = { debut, finExclusive };
+                    batch.set(doc(db, 'enveloppes', ENV_PERIOD_ID), period);
+                    for (const envelope of snap.docs) {
+                        if (envelope.id === ENV_PERIOD_ID || envelope.data().deleted) continue;
+                        batch.update(doc(db, 'enveloppes', envelope.id), {
+                            reste: remainingForEnvelope(envelope.data(), operations),
+                            lastResetMonth: `paie:${debut}`
+                        });
+                    }
+                    // Période et budgets enregistrés ensemble, sans supprimer d’opération.
+                    await batch.commit();
+                    earlyPayPeriod = period;
+                    renderPayPeriod();
+                    alert('Nouvelle période de paie enregistrée.');
+                });
+            } catch (e) {
+                console.error('nouvellePaie error:', e);
+                alert('La nouvelle période n’a pas pu être enregistrée. Réessayez : ' + e.message);
+            } finally {
+                startingNewPay = false;
+                button.disabled = false;
+            }
         };
 
         // Crée les documents manquants au premier lancement
         const initEnveloppes = async () => {
             const snap = await getDocs(envColl);
+            readPayPeriod(snap);
             // On considère comme "existant" tout doc présent, même marqué deleted=true
             const existingIds = new Set(snap.docs.map(d => d.id));
             const key = currentMonthKey();
@@ -548,8 +637,10 @@
         // Remet les enveloppes à zéro au changement de mois (lastResetMonth + reste = montant)
         const checkMonthlyReset = async () => {
             const snap = await getDocs(envColl);
+            readPayPeriod(snap);
             const key = currentMonthKey();
             for (const docSnap of snap.docs) {
+                if (docSnap.id === ENV_PERIOD_ID || docSnap.data().deleted) continue;
                 if (docSnap.data().lastResetMonth !== key) {
                     await updateDoc(doc(db, "enveloppes", docSnap.id), {
                         lastResetMonth: key,
@@ -564,51 +655,29 @@
 
         // Recalcule les restes en scannant toutes les dépenses du mois courant.
         // Garantit la cohérence même pour les opérations saisies avant l'ajout de l'onglet.
-        const recalculerEnveloppes = async () => {
+        const recalculerEnveloppes = () => queueEnvelopeWork(async () => {
             try {
+                const envSnap = await getDocs(envColl);
+                readPayPeriod(envSnap);
                 const { debut, finExclusive } = currentPayPeriodRange();
 
-                // 1. Toutes les dépenses de la période de paie en cours (28 → 27 du mois suivant)
+                // Dépenses de la période normale ou anticipée, hors opérations exclues.
                 const opsSnap = await getDocs(opsColl);
-                const monthOps = [];
-                opsSnap.forEach(d => {
-                    const data = d.data();
-                    if (data.X === 'x') return;
-                    const dep = cleanVal(data["Dépenses"]);
-                    const date = data["Date"];
-                    if (dep > 0 && date && date >= debut && date < finExclusive) {
-                        monthOps.push({ tiers: (data["Tiers"] || "").toLowerCase().trim(), montant: dep });
-                    }
-                });
+                const monthOps = expensesForPeriod(opsSnap, debut, finExclusive);
 
-                // 2. Pour chaque enveloppe : reste = montant - Σ dépenses correspondantes ce mois
-                const envSnap = await getDocs(envColl);
+                // Pour chaque enveloppe : budget moins les dépenses de cette période.
                 for (const docSnap of envSnap.docs) {
-                    const data = docSnap.data();
-                    const nomNorm = data.nom.toLowerCase().trim();
-                    let totalDep = 0;
-                    const re = new RegExp("\\b" + escapeRegExp(nomNorm) + "\\b");
-                    for (const op of monthOps) {
-                        if (re.test(op.tiers)) {
-                            totalDep += op.montant;
-                        }
-                    }
-                    const newReste = parseFloat((data.montant - totalDep).toFixed(2));
+                    if (docSnap.id === ENV_PERIOD_ID || docSnap.data().deleted) continue;
+                    const newReste = remainingForEnvelope(docSnap.data(), monthOps);
                     await updateDoc(doc(db, "enveloppes", docSnap.id), { reste: newReste });
                 }
 
-                const infoEl = document.getElementById('env-reset-info');
-                if (infoEl) {
-                    const finInclusive = new Date(finExclusive + 'T00:00:00');
-                    finInclusive.setDate(finInclusive.getDate() - 1);
-                    const fmtJour = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR');
-                    infoEl.textContent = `Période : ${fmtJour(debut)} → ${finInclusive.toLocaleDateString('fr-FR')}`;
-                }
+                renderPayPeriod();
             } catch (e) {
                 console.error('recalculerEnveloppes error:', e);
                 alert('Erreur lors du recalcul des enveloppes : ' + e.message);
             }
-        };
+        });
 
         window.recalculerEnveloppes = recalculerEnveloppes;
 
@@ -616,7 +685,7 @@
         const renderEnveloppes = (docs) => {
             const list = document.getElementById('enveloppes-list');
             if (!list) return;
-            docs = docs.filter(d => !d.data().deleted);
+            docs = docs.filter(d => d.id !== ENV_PERIOD_ID && !d.data().deleted);
             const envMap = Object.fromEntries(docs.map(d => [d.id, { ...d.data(), docId: d.id }]));
 
             // Calcul des totaux
@@ -1134,7 +1203,9 @@
 
         // Écoute temps réel des enveloppes (sync tous appareils)
         onSnapshot(envColl, (snap) => {
-            envSnapshot = snap.docs;
+            readPayPeriod(snap);
+            renderPayPeriod();
+            envSnapshot = snap.docs.filter(d => d.id !== ENV_PERIOD_ID);
             renderEnveloppes(snap.docs);
         });
 
@@ -1264,8 +1335,10 @@
         await initEnveloppes();
         await checkMonthlyReset();
         await recalculerEnveloppes(); // rattrape les opérations déjà saisies
+        document.getElementById('btnNouvellePaie').disabled = false;
         await initCartes();
         } // end initApp
     </script>
 </body>
 </html>
+
