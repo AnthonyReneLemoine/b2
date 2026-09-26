@@ -503,7 +503,8 @@
         // pas le 1er calendaire. Une "période de paie" va du 28 d'un mois au 27 du suivant.
         const PAYDAY = 28;
         // Même collection que les enveloppes : la période est partagée entre appareils.
-        const ENV_PERIOD_ID = '__pay_period__';
+        // Firestore réserve les identifiants de la forme __.*__.
+        const ENV_PERIOD_ID = 'b2-pay-period';
         let earlyPayPeriod = null;
         let envelopeWork = Promise.resolve();
         const queueEnvelopeWork = (work) => {
@@ -1202,7 +1203,9 @@
         });
 
         // Écoute temps réel des enveloppes (sync tous appareils)
-        onSnapshot(envColl, (snap) => {
+        onSnapshot(envColl, { includeMetadataChanges: true }, (snap) => {
+            // Ne pas afficher un reset local avant son acceptation par le serveur.
+            if (snap.metadata.hasPendingWrites) return;
             readPayPeriod(snap);
             renderPayPeriod();
             envSnapshot = snap.docs.filter(d => d.id !== ENV_PERIOD_ID);
@@ -1341,4 +1344,3 @@
     </script>
 </body>
 </html>
-
