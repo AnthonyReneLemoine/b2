@@ -150,6 +150,14 @@
         .env-modal-save   { flex: 2; padding: 13px; border: none; border-radius: 12px; background: var(--success); color: white; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
 
         .version { position: fixed; bottom: 8px; right: 12px; font-size: 10px; color: #cbd5e0; font-weight: bold; }
+        .calc-box { width:100%; max-width:400px; padding:20px; box-sizing:border-box; background:white; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,.05); }
+        .calc-display { width:100%; min-height:60px; box-sizing:border-box; padding:14px; margin-bottom:12px; border-radius:12px; background:#f0f2f5; color:var(--primary); text-align:right; font-size:25px; overflow-wrap:anywhere; }
+        .calc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+        .calc-grid button { min-height:55px; border:0; border-radius:12px; background:#f0f2f5; color:var(--primary); font-size:20px; font-weight:600; cursor:pointer; }
+        .calc-grid .calc-op { background:#eaf4fb; color:var(--accent); }
+        .calc-grid .calc-equal { background:var(--success); color:white; }
+        .calc-grid .calc-clear { color:var(--danger); }
+        @media (max-width:480px) { .tab-btn { font-size:9px; } }
     </style>
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAC4jAAAuIwF4pT92AAAGNGlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgMTAuMC1jMDAwIDI1LkcuZWY3MmU0ZSwgMjAyNS8wNi8yNy0xODo1NDowNSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDI3LjMgKFdpbmRvd3MpIiB4bXA6Q3JlYXRlRGF0ZT0iMjAyNi0wMi0wNVQxODo1NToyNyswMTowMCIgeG1wOk1vZGlmeURhdGU9IjIwMjYtMDItMDVUMTg6NTU6NTIrMDE6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjYtMDItMDVUMTg6NTU6NTIrMDE6MDAiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiBwaG90b3Nob3A6Q29sb3JNb2RlPSIzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjg3ODBhMGIwLTE5ZGUtMGE0MS04NDhlLTk2NDJkMmI5Njc4ZSIgeG1wTU06RG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOjk2NDU5M2U1LTJjNWYtMTg0YS1hYzQ3LTY4NmRiZWI5N2RjMSIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjUzYzQ0MDk0LWZlMjYtYjY0MC1iMTkyLWI2Mjc1MDA0NGI2NSI+IDx4bXBNTTpIaXN0b3J5PiA8cmRmOlNlcT4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNyZWF0ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6NTNjNDQwOTQtZmUyNi1iNjQwLWIxOTItYjYyNzUwMDQ0YjY1IiBzdEV2dDp3aGVuPSIyMDI2LTAyLTA1VDE4OjU1OjI3KzAxOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjcuMyAoV2luZG93cykiLz4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNvbnZlcnRlZCIgc3RFdnQ6cGFyYW1ldGVycz0iZnJvbSBhcHBsaWNhdGlvbi92bmQuYWRvYmUucGhvdG9zaG9wIHRvIGltYWdlL3BuZyIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6ODc4MGEwYjAtMTlkZS0wYTQxLTg0OGUtOTY0MmQyYjk2NzhlIiBzdEV2dDp3aGVuPSIyMDI2LTAyLTA1VDE4OjU1OjUyKzAxOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjcuMyAoV2luZG93cykiIHN0RXZ0OmNoYW5nZWQ9Ii8iLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+g8FX/AAAAYdJREFUeNrt3LFtwzAURVGN4lE8QkbwCB5BG3CkjJBRPIKjQkWQRrAgkI/k+cBr0ijIMS4CF1qW/u+27WffbXFN72vba9t732v/mWtw5Q/E/xV/nvqJeh9Mwhok6mgS1ihRR5OwBomSsMBESVhooiQsMFESFpgoCQtNlIQFJkrCAhMlYaGJkrDARElYYKKmTljpCGLohPWSqCkS1luihk5YGQii64SNkqghEjZaorpOWJkIIjphsySqi4TNlqjohBUAGQmTqKCESVRQwiQqJGESFZQwiQpKmESFJEyighImUUEJk6iQhElUWMKe21aL2HNxzrmx73FBKz/9CuF+wTPvJ74yqv3MU/d9wX8Un/6i6wXPXE98CGo/EwgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIEBiQR7eBpT1NiDnnAu61aru8LxDt+6AADEgQAwIEAMyG8gvnMeAp3LyAlYAAAAASUVORK5CYII=">
 </head>
@@ -186,6 +194,7 @@
         <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">Rapport</button>
         <button class="tab-btn" id="tab-enveloppes" onclick="showScreen('enveloppes')">Enveloppes</button>
         <button class="tab-btn" id="tab-cartes" onclick="showScreen('cartes')">Cartes du mois</button>
+        <button class="tab-btn" id="tab-calculatrice" onclick="showScreen('calculatrice')">Calculatrice</button>
     </div>
 
     <div class="screen active" id="screen-saisie">
@@ -311,6 +320,32 @@
                 <button type="submit" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:10px 16px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;">Enregistrer</button>
             </form>
             <div id="cartes-list"></div>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-calculatrice">
+        <div class="calc-box">
+            <div class="calc-display" id="calcDisplay" role="status" aria-live="polite">0</div>
+            <div class="calc-grid">
+                <button type="button" class="calc-clear" onclick="calcClear()">C</button>
+                <button type="button" class="calc-op" onclick="calcBack()" aria-label="Effacer le dernier chiffre">⌫</button>
+                <button type="button" class="calc-op" onclick="calcOperator('/')">÷</button>
+                <button type="button" class="calc-op" onclick="calcOperator('*')">×</button>
+                <button type="button" onclick="calcDigit('7')">7</button>
+                <button type="button" onclick="calcDigit('8')">8</button>
+                <button type="button" onclick="calcDigit('9')">9</button>
+                <button type="button" class="calc-op" onclick="calcOperator('-')">−</button>
+                <button type="button" onclick="calcDigit('4')">4</button>
+                <button type="button" onclick="calcDigit('5')">5</button>
+                <button type="button" onclick="calcDigit('6')">6</button>
+                <button type="button" class="calc-op" onclick="calcOperator('+')">+</button>
+                <button type="button" onclick="calcDigit('1')">1</button>
+                <button type="button" onclick="calcDigit('2')">2</button>
+                <button type="button" onclick="calcDigit('3')">3</button>
+                <button type="button" class="calc-equal" onclick="calcEquals()" style="grid-row:span 2">=</button>
+                <button type="button" onclick="calcDigit('0')" style="grid-column:span 2">0</button>
+                <button type="button" onclick="calcDigit('.')">,</button>
+            </div>
         </div>
     </div>
 
@@ -917,6 +952,40 @@
             wrap.innerHTML = fournisseursTags.map((f, i) => `
                 <div class="tag">${f} <span class="tag-x" onclick="removeTag(${i})">×</span></div>
             `).join('');
+        };
+
+        // Calculatrice : calcul successif des quatre opérations.
+        let calcValue = '0', calcStored = null, calcPending = null, calcNewEntry = true;
+        const calcRender = () => { document.getElementById('calcDisplay').textContent = calcValue.replace('.', ','); };
+        window.calcClear = () => { calcValue = '0'; calcStored = null; calcPending = null; calcNewEntry = true; calcRender(); };
+        window.calcDigit = (digit) => {
+            if (calcValue === 'Erreur') window.calcClear();
+            if (calcNewEntry) { calcValue = digit === '.' ? '0.' : digit; calcNewEntry = false; }
+            else if (digit === '.' && !calcValue.includes('.')) calcValue += '.';
+            else if (digit !== '.' && calcValue.length < 16) calcValue = calcValue === '0' ? digit : calcValue + digit;
+            calcRender();
+        };
+        window.calcBack = () => {
+            if (calcValue === 'Erreur') return window.calcClear();
+            if (!calcNewEntry) calcValue = calcValue.length > 1 ? calcValue.slice(0, -1) : '0';
+            if (calcValue === '-') calcValue = '0';
+            calcRender();
+        };
+        const calcCompute = () => {
+            const a = calcStored, b = Number(calcValue);
+            const result = calcPending === '+' ? a + b : calcPending === '-' ? a - b : calcPending === '*' ? a * b : b === 0 ? NaN : a / b;
+            calcValue = Number.isFinite(result) ? String(Number(result.toPrecision(12))) : 'Erreur';
+            calcRender();
+            return calcValue !== 'Erreur';
+        };
+        window.calcOperator = (op) => {
+            if (calcValue === 'Erreur') return;
+            if (calcPending && !calcNewEntry && !calcCompute()) { calcPending = null; calcStored = null; return; }
+            calcStored = Number(calcValue); calcPending = op; calcNewEntry = true;
+        };
+        window.calcEquals = () => {
+            if (!calcPending || calcNewEntry || calcValue === 'Erreur') return;
+            calcCompute(); calcPending = null; calcStored = null; calcNewEntry = true;
         };
 
         // --- NAVIGATION ---
