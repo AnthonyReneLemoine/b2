@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {prevision} from '../prelevements.mjs';
+import {prevision,prochaineSaisie} from '../prelevements.mjs';
 import {createStore,browserDrafts,tables} from '../essai.mjs';
 
 const r = {id:'r',nom:'Eau',premiere:'2026-10-20',cents:2500};
@@ -52,4 +52,57 @@ test('liens persistants, contrôle des conflits et suppression d’une règle',a
     assert.equal((await liste()).docs.find(d=>d.id==='rapprochements').data()['r:2026-11'],'o');
     await autre.supprimerRegle('r');
     assert.deepEqual((await liste()).docs.map(d=>d.data()),[{}]);
+});
+
+test('la création inscrit immédiatement une seule dépense, modifiable puis supprimable',async()=>{
+    const base=Object.fromEntries(tables.map(t=>[t,new Map()]));
+    const backend=browserDrafts(null);
+    const store=createStore(base,backend);
+    const modele={...r,premiere:'2026-11-25'};
+    await store.saisirEcheance(modele,modele.premiere,null,true);
+    const operations=store.collection(null,'operations');
+    const [auto]=(await store.getDocs(operations)).docs;
+    assert.equal(auto.data().Date,'2026-11-25');
+    assert.equal(auto.data().Dépenses,25);
+    await assert.rejects(store.saisirEcheance(modele,modele.premiere,null,true));
+    await store.updateDoc(store.doc(null,'operations',auto.id),{Date:'2026-11-24',Dépenses:22,Tiers:'Eau corrigée'});
+    const saved=(await store.getDocs(store.collection(null,'prelevements'))).docs[0].data();
+    const doc=(await store.getDocs(operations)).docs[0];
+    const calculer=ops=>prevision([{...saved,id:'r'}],[{Recettes:1000},...ops],{},periode,'2026-11-18');
+    const resultat=calculer([{...doc.data(),id:doc.id}]);
+    assert.equal(resultat.dates[0].operation.Tiers,'Eau corrigée');
+    assert.equal(resultat.restant,2200);
+    assert.equal(resultat.projete,97800);
+    assert.equal(prochaineSaisie(saved,'2026-12-24',periode.debut),null);
+    await store.deleteDoc(store.doc(null,'operations',auto.id));
+    assert.equal(calculer([]).restant,0);
+    assert.equal(prochaineSaisie(saved,'2026-12-25',periode.debut),'2026-12-25');
+});
+test('mois manqués et fin février, y compris après réouverture et accès concurrents',async()=>{
+    const base=Object.fromEntries(tables.map(t=>[t,new Map()]));
+    const backend=browserDrafts(null);
+    const store=createStore(base,backend);
+    const modele={...r,premiere:'2027-01-31'};
+    await store.saisirEcheance(modele,modele.premiere,null,true);
+    store.close();
+    const nouveau=createStore(base,backend);
+    const actif={...modele,dernierMois:'2027-01'};
+    const date=prochaineSaisie(actif,'2027-03-31','2027-03-28');
+    assert.equal(date,'2027-02-28');
+    const deux=await Promise.allSettled([nouveau.saisirEcheance(actif,date),nouveau.saisirEcheance(actif,date)]);
+    assert.deepEqual(deux.map(x=>x.status),['fulfilled','rejected']);
+    assert.equal(prochaineSaisie({...actif,dernierMois:'2027-02'},'2027-03-31','2027-03-28'),'2027-03-31');
+    assert.equal((await nouveau.getDocs(nouveau.collection(null,'operations'))).docs.length,2);
+});
+test('une dépense existante reconnue est conservée pendant la migration',async()=>{
+    const base=Object.fromEntries(tables.map(t=>[t,new Map()]));
+    base.operations.set('ancienne',{...op,note:'Conserver',P:'x'});
+    base.prelevements.set('r',r);
+    const store=createStore(base,browserDrafts(null));
+    const date=prochaineSaisie(r,'2026-11-20',periode.debut);
+    assert.equal(date,'2026-11-20');
+    await store.saisirEcheance(r,date,'ancienne');
+    const docs=(await store.getDocs(store.collection(null,'operations'))).docs;
+    assert.equal(docs.length,1);
+    assert.deepEqual(docs[0].data(),{...base.operations.get('ancienne'),echeanceId:'r:2026-11'});
 });

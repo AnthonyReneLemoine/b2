@@ -4,6 +4,20 @@ export const sources = ['operations', 'enveloppes', 'cartes'];
 export const tables = [...sources,'prelevements'];
 export const keyOf = (table,id) => JSON.stringify([table,id]);
 export function newValue(current, action) {
+  if (action.type === 'avancer') {
+    const {regle,date,creation} = action.data;
+    if (creation ? current !== undefined : !current || ['premiere','nom','cents','dernierMois'].some(k=>current[k]!==regle[k])) {
+      const erreur = Error('Ce prélèvement a été modifié. Actualise la page pour réessayer.');
+      erreur.code = 'echeance-modifiee';
+      throw erreur;
+    }
+    return {...(current || {nom:regle.nom,cents:regle.cents,premiere:regle.premiere}),dernierMois:date.slice(0,7)};
+  }
+  if (action.type === 'adopter') {
+    if (!current || (current.echeanceId && current.echeanceId !== action.data.echeanceId)) throw Error('Cette dépense a changé.');
+    return {...current,echeanceId:action.data.echeanceId};
+  }
+  if (action.type === 'inscrire') return current === undefined ? action.data : current;
   if (action.type === 'oublierLiens') return Object.fromEntries(Object.entries(current || {}).filter(([key]) => !key.startsWith(action.data.id+':')));
   if (action.type === 'lier') return modifierLien(current ?? {},action.data);
   if (action.type === 'delete') return null;
@@ -106,6 +120,16 @@ export function createStore(base, backend, onError) {
       return ()=>listeners.delete(entry);
     },
     setDoc:(ref,data,options)=>write([action(ref,data,options?.merge?'update':'set')]),
+    saisirEcheance(regle,date,operationId,creation=false) {
+      const echeanceId = regle.id+':'+date.slice(0,7);
+      const ops = doc(null,'operations',operationId || 'prelevement-'+echeanceId);
+      const data = {echeanceId,Date:date,Tiers:regle.nom,'Dépenses':regle.cents/100,Recettes:'',
+        'E/C':'c','moyen de paiement':'Prélèvement',P:'',V:'',X:'',note:''};
+      return write([
+        action(doc(null,'prelevements',regle.id),{regle,date,creation},'avancer'),
+        action(ops,data,operationId?'adopter':'inscrire')
+      ]);
+    },
     supprimerRegle:(id)=>write([
       action(doc(null,'prelevements',id),null,'delete'),
       action(doc(null,'prelevements','rapprochements'),{id},'oublierLiens')

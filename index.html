@@ -293,15 +293,8 @@
                     <label for="ech-tiers">Fournisseur</label><input id="ech-tiers" list="tiersList" required maxlength="120">
                     <label for="ech-montant">Montant mensuel (€)</label><input type="number" id="ech-montant" step="0.01" min="0.01" required inputmode="decimal">
                     <label for="ech-debut">Première échéance</label><input type="date" id="ech-debut" required>
-                    <p>Chaque mois au même jour, ou au dernier jour du mois s’il est plus court.</p>
+                    <p>La première dépense est inscrite dès l’enregistrement. Les suivantes sont ajoutées à leur échéance, au dernier jour du mois si nécessaire.</p>
                     <button type="submit" class="principal">Enregistrer</button><button type="button" id="ech-annuler">Annuler</button>
-                </form>
-            </dialog>
-            <dialog id="ech-lien" aria-labelledby="ech-lien-titre">
-                <form id="ech-lien-form"><h3 id="ech-lien-titre">Associer une dépense</h3>
-                    <p id="ech-reference"></p>
-                    <label for="ech-op">Dépense enregistrée</label><select id="ech-op" required></select>
-                    <button type="submit" class="principal">Associer</button><button type="button" id="ech-fermer">Annuler</button>
                 </form>
             </dialog>
             <p role="status" id="ech-message"></p>
@@ -696,9 +689,9 @@
             };
         };
 
-        const actualiserEcheancier = installerEcheancier(store,currentPayPeriodRange);
+        const actualiserEcheancier = installerEcheancier(store,currentPayPeriodRange,async()=>{ await recalculerEnveloppes(); await updateHeader(); });
         const renderPayPeriod = () => {
-            actualiserEcheancier();
+            actualiserEcheancier.afficher();
             const { debut, finExclusive, early } = currentPayPeriodRange();
             const fin = new Date(finExclusive + 'T12:00:00');
             fin.setDate(fin.getDate() - 1);
@@ -708,7 +701,7 @@
 
         const expensesForPeriod = (snap, debut, finExclusive) => snap.docs
             .map(d => d.data())
-            .filter(op => op.X !== 'x' && cleanVal(op['Dépenses']) > 0 && op.Date >= debut && op.Date < finExclusive)
+            .filter(op => op.X !== 'x' && (!op.echeanceId || op.Date <= localDateISO(new Date())) && cleanVal(op['Dépenses']) > 0 && op.Date >= debut && op.Date < finExclusive)
             .map(op => ({ tiers: (op.Tiers || '').toLowerCase().trim(), montant: cleanVal(op['Dépenses']) }));
 
         const remainingForEnvelope = (env, operations) => {
@@ -1105,7 +1098,7 @@
 
         // --- NAVIGATION ---
         window.showScreen = (n) => {
-            if (n === 'echeances') actualiserEcheancier();
+            if (n === 'echeances') actualiserEcheancier.afficher();
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('screen-' + n).classList.add('active');
@@ -1255,8 +1248,11 @@
                 r += cleanVal(doc.data()["Recettes"]);
                 d += cleanVal(doc.data()["Dépenses"]);
             });
-            lastSolde = r - d;
-            document.getElementById('headSolde').innerText = fmt(r - d);
+            const aujourdhui = localDateISO(new Date());
+            const aVenir = snap.docs.map(d=>d.data()).filter(op=>op.echeanceId && op.X !== 'x' && op.Date > aujourdhui)
+                .reduce((total,op)=>total+cleanVal(op.Recettes)-cleanVal(op['Dépenses']),0);
+            lastSolde = r - d - aVenir;
+            document.getElementById('headSolde').innerText = fmt(lastSolde);
             document.getElementById('rapportRecette').innerText = fmt(r);
             document.getElementById('rapportDepense').innerText = fmt(d);
             updateHeadReste();
@@ -1265,8 +1261,8 @@
         // Cache des 40 dernières opérations pour ouverture rapide du modal
         let opsCache = {};
 
-        window.openOpModal = (id) => {
-            const op = opsCache[id];
+        window.openOpModal = (id, operation) => {
+            const op = operation || opsCache[id];
             if (!op) return;
             document.getElementById('opModalId').value = id;
             document.getElementById('opModalDate').value = op.Date || '';
@@ -1274,7 +1270,7 @@
             const isDep = cleanVal(op["Dépenses"]) > 0;
             document.getElementById('opModalType').value = isDep ? 'depense' : 'recette';
             document.getElementById('opModalMontant').value = isDep ? cleanVal(op["Dépenses"]) : cleanVal(op["Recettes"]);
-            document.getElementById('opModalCompte').value = op["E/C"] || 'E';
+            document.getElementById('opModalCompte').value = String(op["E/C"] || 'E').toUpperCase();
             document.getElementById('opModalNote').value = op.note || '';
             document.getElementById('opModal').classList.add('open');
         };
@@ -1338,6 +1334,7 @@
                         <div class="op-main">
                             <small style="color:#999">${html(op.Date)}</small><br>
                             <span class="op-name">${html(op.Tiers)}</span>
+                            ${op.echeanceId ? '<small class="op-note">Prélèvement mensuel</small>' : ''}
                             ${op.note ? `<small class="op-note">${html(op.note)}</small>` : ''}
                             <div style="margin-top:5px;">
                                 <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField(${argument(id)},'P',${argument(op.P)})">C</button>
@@ -1525,6 +1522,7 @@
         await recalculerEnveloppes(); // rattrape les opérations déjà saisies
         document.getElementById('btnNouvellePaie').disabled = false;
         await initCartes();
+        await actualiserEcheancier.demarrer();
         } // end initApp
     </script>
 </body>

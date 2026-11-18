@@ -1,4 +1,4 @@
-import {prevision} from './prelevements.mjs';
+import {prevision, prochaineSaisie} from './prelevements.mjs';
 
 const el = id => document.getElementById('ech-'+id);
 const argent = cents => (cents/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
@@ -15,10 +15,39 @@ function bouton(texte,action) {
     return node;
 }
 
-export function installerEcheancier(store,periode) {
+export function installerEcheancier(store,periode,apresSaisie) {
     const collection = store.collection(null,'prelevements');
     let regles = [], ops = [], liens = {}, lignes = [];
-    let edition, choix, precedent;
+    let edition, actif = false, enCours = false;
+    const aujourdhui = ()=>new Date().toLocaleDateString('sv-SE');
+    function correspondance(regle,date,creation=false) {
+        const fin = new Date(date+'T12:00:00Z');
+        fin.setUTCDate(fin.getUTCDate()+1);
+        const bornes = {debut:date,finExclusive:fin.toISOString().slice(0,10)};
+        const modeles = creation ? [...regles,regle] : regles;
+        const ligne = prevision(modeles,ops,liens,bornes).dates.find(l=>l.regle.id===regle.id);
+        return ligne?.operation?.id;
+    }
+    async function rattraper() {
+        if (!actif || enCours) return;
+        enCours = true;
+        let modifie = false;
+        try {
+            for (;;) {
+                const debut = periode().debut, jourCourant = aujourdhui();
+                const regle = regles.find(r=>prochaineSaisie(r,jourCourant,debut));
+                if (!regle) break;
+                const date = prochaineSaisie(regle,jourCourant,debut);
+                await store.saisirEcheance(regle,date,correspondance(regle,date));
+                modifie = true;
+            }
+        } catch(error) {
+            if (error.code !== 'echeance-modifiee') el('message').textContent = error.message;
+        } finally {
+            enCours = false;
+            if (modifie) await apresSaisie();
+        }
+    }
     function ouvrir(regle) {
         edition = regle?.id;
         el('titre').textContent = edition ? 'Modifier le prélèvement' : 'Ajouter un prélèvement';
@@ -26,25 +55,6 @@ export function installerEcheancier(store,periode) {
         el('montant').value = regle ? regle.cents/100 : '';
         el('debut').value = regle?.premiere || new Date().toLocaleDateString('sv-SE');
         el('dialog').showModal();
-    }
-    function associer(ligne) {
-        choix = ligne.id;
-        precedent = liens[choix] ?? null;
-        const prises = new Set([...Object.values(liens),...lignes.map(l=>l.operation?.id)]);
-        const {debut,finExclusive} = periode();
-        const bord = new Date(debut+'T12:00:00Z');
-        bord.setUTCDate(bord.getUTCDate()-7);
-        const fin = new Date(finExclusive+'T12:00:00Z');
-        fin.setUTCDate(fin.getUTCDate()+7);
-        const min = bord.toISOString().slice(0,10), max = fin.toISOString().slice(0,10);
-        const candidates = ops.filter(op=>op.X!=='x' && nombre(op.Dépenses)>0 && !prises.has(op.id) && op.Date>=min && op.Date<max);
-        candidates.sort((a,b)=>Math.abs(Date.parse(a.Date)-Date.parse(ligne.date))-Math.abs(Date.parse(b.Date)-Date.parse(ligne.date))||a.id.localeCompare(b.id));
-        el('reference').textContent = ligne.regle.nom+' · '+jour(ligne.date)+' · '+argent(ligne.regle.cents);
-        const select = el('op');
-        select.replaceChildren(new Option(candidates.length?'Choisir une opération':'Aucune dépense disponible sur la période', ''));
-        for (const op of candidates) select.add(new Option(jour(op.Date)+' · '+op.Tiers+' · '+argent(Math.round(nombre(op.Dépenses)*100)),op.id));
-        el('lien-form').querySelector('[type=submit]').disabled = !candidates.length;
-        el('lien').showModal();
     }
     function nombre(value) { return Number(String(value || 0).replace(/\s/g,'').replace(',','.')); }
     async function enregistrer(form,action,dialog) {
@@ -57,16 +67,18 @@ export function installerEcheancier(store,periode) {
     }
     el('ajouter').onclick = ()=>ouvrir();
     el('annuler').onclick = ()=>el('dialog').close();
-    el('fermer').onclick = ()=>el('lien').close();
     el('form').onsubmit = event=>{
         event.preventDefault();
         const data = {nom:el('tiers').value.trim(),cents:Math.round(el('montant').valueAsNumber*100),premiere:el('debut').value};
         if (!data.nom || !Number.isSafeInteger(data.cents) || data.cents<=0) return alert('Vérifie le fournisseur et le montant.');
-        enregistrer(event.currentTarget,()=>edition?store.updateDoc(store.doc(null,'prelevements',edition),data):store.addDoc(collection,data),el('dialog'));
-    };
-    el('lien-form').onsubmit = event=>{
-        event.preventDefault();
-        enregistrer(event.currentTarget,()=>store.lier({echeance:choix,operation:el('op').value,precedent}),el('lien'));
+        enregistrer(event.currentTarget,async()=>{
+            if (edition) await store.updateDoc(store.doc(null,'prelevements',edition),data);
+            else {
+                const regle = {...data,id:crypto.randomUUID()};
+                await store.saisirEcheance(regle,data.premiere,correspondance(regle,data.premiere,true),true);
+                await apresSaisie();
+            }
+        },el('dialog'));
     };
     function afficher() {
         const bornes = periode();
@@ -83,12 +95,10 @@ export function installerEcheancier(store,periode) {
             card.className = 'echeance';
             card.append(element('h3',ligne.regle.nom),element('p',jour(ligne.date)+' · '+argent(ligne.regle.cents)));
             const op = ligne.operation;
-            if (op) card.append(element('p',(ligne.manuel?'Dépense associée':'Dépense reconnue')+' · '+jour(op.Date)+' · '+op.Tiers+' · '+argent(Math.round(nombre(op.Dépenses)*100))));
-            else card.append(element('p','À prélever'),bouton('Associer une dépense',()=>associer(ligne)));
-            if (ligne.manuel) card.append(bouton('Retirer le lien',async()=>{
-                try { await store.lier({echeance:ligne.id,operation:null,precedent:liens[ligne.id]}); }
-                catch(error) { el('message').textContent = error.message; }
-            }));
+            if (op) {
+                card.append(element('p','Dans l’historique · '+jour(op.Date)+' · '+op.Tiers+' · '+argent(Math.round(nombre(op.Dépenses)*100))),
+                    bouton('Modifier la dépense',()=>window.openOpModal(op.id,op)));
+            } else card.append(element('p',ligne.saisie?'Dépense supprimée':'Saisie automatique à l’échéance'));
             liste.append(card);
         }
         el('regles').replaceChildren();
@@ -101,6 +111,10 @@ export function installerEcheancier(store,periode) {
                     try { await store.supprimerRegle(regle.id); }
                     catch(error) { el('message').textContent = error.message; }
                 }));
+            const premiere = ops.find(op=>op.echeanceId===regle.id+':'+regle.premiere.slice(0,7));
+            if (premiere && !lignes.some(l=>l.operation?.id===premiere.id) && premiere.Date>=aujourdhui()) {
+                div.append(bouton('Modifier la première dépense',()=>window.openOpModal(premiere.id,premiere)));
+            }
             el('regles').append(div);
         }
     }
@@ -108,11 +122,30 @@ export function installerEcheancier(store,periode) {
         regles = snap.docs.filter(d=>d.id!=='rapprochements').map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
         liens = snap.docs.find(d=>d.id==='rapprochements')?.data() || {};
         afficher();
+        queueMicrotask(rattraper);
     });
     store.onSnapshot(store.collection(null,'operations'),snap=>{
         ops = snap.docs.map(d=>({...d.data(),id:d.id}));
         afficher();
     });
     el('gestion').open = !regles.length;
-    return afficher;
+    return {
+        afficher,
+        demarrer() {
+            actif = true;
+            let dernierJour = aujourdhui();
+            const verifierJour = ()=>{
+                const date = aujourdhui();
+                if (date !== dernierJour) {
+                    dernierJour = date;
+                    afficher();
+                    apresSaisie();
+                }
+                rattraper();
+            };
+            window.addEventListener('focus',verifierJour);
+            window.setInterval(verifierJour,60000);
+            return rattraper();
+        }
+    };
 }
