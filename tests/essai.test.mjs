@@ -68,3 +68,39 @@ test('une reprise interrompue conserve les lignes locales restant à synchronise
   await local.resume(async group=>assert.equal(group.length,1));
   assert.equal(local.read().size,0);
 });
+
+test('renommage global atomique, persistant et limité aux écritures sélectionnées',async()=>{
+  const {base}=fixture(), backend=browserDrafts(null);
+  for (let i=0;i<810;i++) base.operations.set('op'+i,{
+    Tiers:i%2?'CAFÉ  SAS':' café sas ',Date:i%3?'2024-01-02':'2026-11-19',
+    Recettes:i%2?10:'',Dépenses:i%2?'':25,X:i%4?'':'x',note:'cafÉ sas'
+  });
+  base.operations.set('autre',{Tiers:'Café SAS Nord'});
+  base.operations.set('existant',{Tiers:'Maison'});
+  const store=createStore(base,backend), ops=store.collection(null,'operations');
+  const apercu=store.preparerRenommage('Café sas','Maison');
+  assert.equal(apercu.length,810);
+  const observations=[];
+  store.onSnapshot(ops,s=>observations.push(s.docs.filter(d=>d.data().Tiers==='Maison').length));
+  await store.renommerFournisseur('Café sas','Maison',apercu);
+  assert.deepEqual(observations,[1,811]);
+  assert.ok(backend.read().size<=64);
+  const reopened=createStore(base,backend);
+  const get=async id=>(await reopened.getDocs(ops)).docs.find(d=>d.id===id).data();
+  assert.deepEqual(await get('op1'),{...base.operations.get('op1'),Tiers:'Maison'});
+  assert.equal((await get('autre')).Tiers,'Café SAS Nord');
+  await reopened.updateDoc(reopened.doc(null,'operations','op0'),{P:'x'});
+  assert.equal((await get('op0')).Tiers,'Maison');
+  await reopened.updateDoc(reopened.doc(null,'operations','op0'),{Tiers:' café sas '});
+  const nouvel=await reopened.addDoc(ops,{Tiers:'Café sas'});
+  const deuxieme=reopened.preparerRenommage('maison','MAISON');
+  assert.equal(deuxieme.length,810);
+  await reopened.renommerFournisseur('maison','MAISON',deuxieme);
+  assert.equal((await get('op1')).Tiers,'MAISON');
+  assert.equal((await get('op0')).Tiers,' café sas ');
+  assert.equal((await get(nouvel.id)).Tiers,'Café sas');
+  const avant=reopened.preparerRenommage('maison','Final');
+  await reopened.deleteDoc(reopened.doc(null,'operations','op1'));
+  await assert.rejects(reopened.renommerFournisseur('maison','Final',avant),/liste des écritures/);
+  assert.equal((await get('op2')).Tiers,'MAISON');
+});

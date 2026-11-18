@@ -177,6 +177,13 @@
         .screen {padding-top:150px}
         @media(max-width:620px){.tab-bar{overflow-x:auto}.tab-btn{min-width:70px}.screen{padding-top:165px}}
             #sync-help {border:0;border-radius:14px;max-width:min(36rem,90vw);padding:1.3rem;color:var(--primary)}
+        #renommage-dialog { border:0; color:var(--primary); max-height:90vh; overflow:auto; }
+        #renommage-dialog::backdrop { background:#17232f99; }
+        #renommage-dialog p, #renommage-info { font-size:14px; line-height:1.45; }
+        #renommage-dialog button:disabled { opacity:.5; }
+        #renommage-info { width:100%; margin:4px 5px; }
+        #renommage-info:empty, #renommage-erreur:empty { display:none; }
+        #renommage-erreur { color:var(--danger); }
         #sync-help pre {white-space:pre-wrap;overflow-wrap:anywhere;background:#eef3f7;padding:.8rem;user-select:all}
         #sync-help::backdrop {background:#17232f99}
         #sync-help button {margin-left:1rem}
@@ -261,11 +268,13 @@
     <div class="screen" id="screen-historique">
         <div id="hist-toggle-bar" style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 5px 4px; box-sizing:border-box;">
             <input type="text" id="hist-search" placeholder="🔍 Fournisseur ou montant…" oninput="onHistSearch()" style="flex:1; min-width:160px; max-width:320px; padding:7px 12px; border:1px solid #e0e0e0; border-radius:20px; font-size:12px; background:#fff; outline:none;">
+            <button type="button" class="hist-toggle" id="ouvrir-renommage">Renommer un fournisseur</button>
             <div style="display:flex; gap:8px; margin-left:auto;">
                 <button class="hist-toggle active" id="toggleMoisCourant" onclick="toggleHistMois()">Mois en cours</button>
                 <button class="hist-toggle active" id="toggleMasquerC" onclick="toggleMasquerC()">Masquer C</button>
             </div>
         </div>
+        <p id="renommage-info" role="status"></p>
         <div id="history-list" style="width: 100%;"></div>
     </div>
 
@@ -456,6 +465,21 @@
     </div>
 
 
+    <dialog id="renommage-dialog" class="env-modal-box" aria-labelledby="renommage-titre">
+        <form id="renommage-form">
+            <h2 class="env-modal-title" id="renommage-titre">Renommer un fournisseur</h2>
+            <div class="env-modal-field"><label for="renommage-source">Fournisseur actuel</label>
+                <select id="renommage-source" required></select></div>
+            <div class="env-modal-field"><label for="renommage-nom">Nouveau nom</label>
+                <input id="renommage-nom" type="text" required autocomplete="off"></div>
+            <p id="renommage-apercu" role="status"></p>
+            <p id="renommage-erreur" role="alert"></p>
+            <div class="env-modal-actions">
+                <button class="env-modal-cancel" id="renommage-annuler" type="button">Annuler</button>
+                <button class="env-modal-save" id="renommage-valider" type="submit" disabled>Renommer</button>
+            </div>
+        </form>
+    </dialog>
     <dialog id="sync-help" aria-labelledby="sync-title">
         <h2 id="sync-title">Synchroniser les essais entre appareils</h2>
         <p>Les modifications sont enregistrées dans ce navigateur. Pour les synchroniser, ouvre les règles Firestore du projet banque-3fd70.</p>
@@ -1331,7 +1355,7 @@
                 if (!id || isNaN(montant) || montant <= 0) return;
                 await setDoc(doc(db, "operations", id), {
                     Date: document.getElementById('opModalDate').value,
-                    Tiers: document.getElementById('opModalTiers').value.trim().toLowerCase(),
+                    Tiers: document.getElementById('opModalTiers').value.trim(),
                     "Dépenses": type === 'depense' ? montant : "",
                     "Recettes": type === 'recette' ? montant : "",
                     "E/C": document.getElementById('opModalCompte').value,
@@ -1391,6 +1415,72 @@
                     </div>
                 `;
             }).join('');
+        };
+
+        const fenetreNom = el('renommage-dialog'), ancienNom = el('renommage-source'), nouveauNom = el('renommage-nom');
+        const validerNom = el('renommage-valider'), annulerNom = el('renommage-annuler');
+        let apercuNom = [], groupesNoms = new Map(), renommageEnCours = false;
+        function actualiserApercuNom() {
+            const cible = nouveauNom.value.trim();
+            const groupe = groupesNoms.get(ancienNom.value);
+            apercuNom = store.preparerRenommage(ancienNom.value,cible);
+            const nombre = cible ? apercuNom.length : groupe?.nombre || 0;
+            const pluriel = nombre > 1 ? 's' : '';
+            let message = groupe ? nombre+' écriture'+pluriel+' concernée'+pluriel+', toutes dates confondues.' :
+                groupesNoms.size ? 'Choisis le fournisseur à renommer.' : 'Aucun fournisseur dans l’historique.';
+            if (groupe && cible && cleFournisseur(cible)!==ancienNom.value && groupesNoms.has(cleFournisseur(cible)))
+                message += ' Ce nom existe déjà. Les écritures seront regroupées sous ce fournisseur.';
+            el('renommage-apercu').textContent = message;
+            el('renommage-erreur').textContent = '';
+            validerNom.disabled = renommageEnCours || !apercuNom.length;
+        }
+        async function chargerNoms(selection) {
+            groupesNoms = new Map();
+            for (const ligne of (await getDocs(opsColl)).docs) {
+                const nom = ligne.data().Tiers;
+                if (typeof nom!=='string' || !nom.trim()) continue;
+                const cle = cleFournisseur(nom);
+                const groupe = groupesNoms.get(cle) || {nom:nom.trim(),nombre:0};
+                groupe.nombre++;
+                groupesNoms.set(cle,groupe);
+            }
+            const groupes = [...groupesNoms].sort((a,b)=>a[1].nom.localeCompare(b[1].nom,'fr'));
+            ancienNom.replaceChildren(new Option('Choisir un fournisseur',''),...groupes.map(([cle,g])=>new Option(g.nom,cle)));
+            ancienNom.value = groupesNoms.has(selection) ? selection : '';
+            actualiserApercuNom();
+        }
+        el('ouvrir-renommage').onclick = async () => {
+            el('renommage-info').textContent = '';
+            nouveauNom.value = '';
+            await chargerNoms(cleFournisseur(el('hist-search').value));
+            fenetreNom.showModal();
+        };
+        ancienNom.onchange = nouveauNom.oninput = actualiserApercuNom;
+        annulerNom.onclick = () => fenetreNom.close();
+        fenetreNom.oncancel = e => { if (renommageEnCours) e.preventDefault(); };
+        el('renommage-form').onsubmit = async e => {
+            e.preventDefault();
+            if (renommageEnCours || !apercuNom.length) return;
+            const source = ancienNom.value, cible = nouveauNom.value.trim(), nombre = apercuNom.length;
+            renommageEnCours = true;
+            validerNom.disabled = annulerNom.disabled = ancienNom.disabled = nouveauNom.disabled = true;
+            try {
+                await store.renommerFournisseur(source,cible,apercuNom);
+            } catch (erreur) {
+                await chargerNoms(source);
+                el('renommage-erreur').textContent = erreur.message || 'Le renommage a échoué.';
+                return;
+            } finally {
+                renommageEnCours = false;
+                annulerNom.disabled = ancienNom.disabled = nouveauNom.disabled = false;
+                validerNom.disabled = !apercuNom.length;
+            }
+            fenetreNom.close();
+            el('renommage-info').textContent = nombre+' écriture'+(nombre>1?'s renommées':' renommée')+' en « '+cible+' ».';
+            if (cleFournisseur(el('hist-search').value)===source) el('hist-search').value = cible;
+            await recalculerEnveloppes();
+            await onHistSearch();
+            if (el('rapport-results').hasChildNodes()) await lancerRapport();
         };
 
         window.onHistSearch = async () => {

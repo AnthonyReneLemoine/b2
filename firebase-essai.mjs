@@ -1,7 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, collection, getDocsFromServer, doc, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-import {tables, keyOf, newValue, createStore, accountDrafts} from './essai.mjs';
+import {tables, tableNoms, keyOf, newValue, createStore, accountDrafts} from './essai.mjs';
         const firebaseConfig = {
             apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
             authDomain: "banque-3fd70.firebaseapp.com",
@@ -48,7 +48,7 @@ export async function connectedStore(user,onError) {
     const snap=await getDocsFromServer(collection(db,table));
     return [table,new Map(snap.docs.map(d=>[d.id,d.data()]))];
   }));
-  const base=Object.fromEntries(rows);
+  const base={...Object.fromEntries(rows),[tableNoms]:new Map()};
   const ref=collection(db,'b2_essais',user.uid,'modifications');
   const local=accountDrafts(localStorage,firebaseConfig.projectId,user.uid);
   let baseline;
@@ -88,7 +88,7 @@ async function restoreDrafts(ref,group) {
   await runTransaction(db,async tx=>{
     const records=await Promise.all(group.map(async ([key,value])=>{
       const [table,id]=JSON.parse(key);
-      if (!tables.includes(table) || !id || typeof id!=='string' || id.includes('/')) throw Error('Modification locale invalide.');
+      if ((!tables.includes(table) && table!==tableNoms) || !id || typeof id!=='string' || id.includes('/')) throw Error('Modification locale invalide.');
       const path=doc(ref,table+'-'+id);
       const snapshot=await tx.get(path);
       if (snapshot.exists() && JSON.stringify(ordered(snapshot.data().value)) !== JSON.stringify(ordered(value))) {
