@@ -230,12 +230,8 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>Compte / Type</label>
-                <div class="segmented-control">
-                    <input type="radio" name="compte" value="c" id="c" checked><label for="c">Courant</label>
-                    <input type="radio" name="compte" value="e" id="e"><label for="e">Essentiel</label>
-                </div>
-                <div class="segmented-control">
+                <label id="type-operation">Type d’opération</label>
+                <div class="segmented-control" role="group" aria-labelledby="type-operation">
                     <input type="radio" name="typeOp" value="depense" id="d" checked><label for="d">Dépense</label>
                     <input type="radio" name="typeOp" value="recette" id="r"><label for="r">Recette</label>
                 </div>
@@ -1092,7 +1088,7 @@
                 "Tiers": tiersVal,
                 "Dépenses": type === 'depense' ? montantVal : "",
                 "Recettes": type === 'recette' ? montantVal : "",
-                "E/C": document.querySelector('input[name="compte"]:checked').value,
+                "E/C": "c",
                 "moyen de paiement": "",
                 "P": "", "V": "", "note": document.getElementById('note').value.trim(), "timestamp": new Date().toISOString()
             };
