@@ -114,6 +114,10 @@
         .env-header-title { font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
         .env-reset-info { font-size: 10px; color: #7f8c8d; }
         .env-card { background: white; border-radius: 15px; margin-bottom: 10px; width: 100%; max-width: 400px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; box-sizing: border-box; }
+        .env-saisir {margin:0 15px 10px;padding:8px 12px;border:1px solid #cad9e3;border-radius:8px;background:#f3f8fc;color:#245270;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+        .env-saisir:disabled {opacity:.6;cursor:default}
+        #env-saisie-info {max-width:400px;color:var(--primary);font-size:14px}
+        #env-saisie-info:not(:empty) {padding:6px 0 12px}
         .env-card-inner { padding: 12px 15px 8px 15px; display: flex; align-items: center; gap: 10px; }
         .env-nom { font-weight: 700; font-size: 13px; color: var(--primary); flex: 1; }
         .env-amounts { text-align: right; }
@@ -311,6 +315,7 @@
             <div style="width:1px; background:rgba(255,255,255,0.15);"></div>
             <div style="text-align:center;"><span style="font-size:17px; font-weight:800; color:#bdc3c7; display:block;" id="envTotalMontant">...</span><span style="font-size:9px; text-transform:uppercase; color:#bdc3c7; letter-spacing:1px;">Budget total</span></div>
         </div>
+        <div id="env-saisie-info" role="status" aria-live="polite"></div>
         <div id="enveloppes-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
     </div>
 
@@ -393,6 +398,7 @@
                 <label>Reste actuel (€)</label>
                 <input type="number" step="0.01" id="envModalReste" placeholder="0.00" inputmode="decimal">
             </div>
+            <button type="button" id="envModalSaisir" class="env-saisir" style="margin:0" onclick="saveEnvModal(true)">Saisir cette dépense</button>
             <div class="env-modal-actions">
                 <button class="env-modal-cancel" onclick="closeEnvModal()">Annuler</button>
                 <button class="env-modal-save"   onclick="saveEnvModal()">Enregistrer</button>
@@ -564,10 +570,9 @@
         // si lastResetMonth != période de paie courante (28 du mois → 27 du mois suivant) → reste = montant.
         // Cela fonctionne sur tous les appareils via onSnapshot.
 
-        const ENVELOPPES_DEFAUT = isDemo ? [
-            {id:'courses',nom:'courses',montant:150,multiplicateur:null},
-            {id:'loisirs',nom:'loisirs',montant:40,multiplicateur:null}
-        ] : [
+        const enveloppesFixes = new Set(['malakoff','mh','mma','youtube']);
+        const saisiesEnCours = new Set();
+        const defautsConnectes = [
             { id: "carburant",                    nom: "carburant",                   montant: 60,     multiplicateur: null },
             { id: "resto",                         nom: "resto",                        montant: 60,     multiplicateur: null },
             { id: "leclerc",                       nom: "leclerc",                      montant: 500,    multiplicateur: 4    },
@@ -582,6 +587,12 @@
             { id: "virement vers caisse epargne",  nom: "virement vers caisse epargne", montant: 25,     multiplicateur: null },
             { id: "ai",                            nom: "ai",                           montant: 21.60,  multiplicateur: null },
         ];
+
+        const ENVELOPPES_DEFAUT = isDemo ? [
+            {id:'courses',nom:'courses',montant:150,multiplicateur:null},
+            {id:'loisirs',nom:'loisirs',montant:40,multiplicateur:null},
+            ...defautsConnectes.filter(env=>enveloppesFixes.has(env.id))
+        ] : defautsConnectes;
 
         // État partagé pour le calcul du "reste" dans le bandeau
         let lastSolde = 0;
@@ -656,11 +667,14 @@
         const expensesForPeriod = (snap, debut, finExclusive) => snap.docs
             .map(d => d.data())
             .filter(op => op.X !== 'x' && cleanVal(op['Dépenses']) > 0 && op.Date >= debut && op.Date < finExclusive)
-            .map(op => ({ tiers: (op.Tiers || '').toLowerCase().trim(), montant: cleanVal(op['Dépenses']) }));
+            .map(op => ({ tiers: (op.Tiers || '').toLowerCase().trim(), montant: cleanVal(op['Dépenses']), enveloppeId: op.enveloppeId }));
 
-        const remainingForEnvelope = (env, operations) => {
+        const remainingForEnvelope = (env, operations, id) => {
             const re = new RegExp('\\b' + escapeRegExp(env.nom.toLowerCase().trim()) + '\\b');
-            const spent = operations.reduce((sum, op) => sum + (re.test(op.tiers) ? op.montant : 0), 0);
+            const spent = operations.reduce((sum, op) => {
+                const appartient = op.enveloppeId ? op.enveloppeId === id : re.test(op.tiers);
+                return sum + (appartient ? op.montant : 0);
+            }, 0);
             return parseFloat((env.montant - spent).toFixed(2));
         };
 
@@ -693,7 +707,7 @@
                     for (const envelope of snap.docs) {
                         if (envelope.id === ENV_PERIOD_ID || envelope.data().deleted) continue;
                         batch.update(doc(db, 'enveloppes', envelope.id), {
-                            reste: remainingForEnvelope(envelope.data(), operations),
+                            reste: remainingForEnvelope(envelope.data(), operations,envelope.id),
                             lastResetMonth: `paie:${debut}`
                         });
                     }
@@ -766,7 +780,7 @@
                 // Pour chaque enveloppe : budget moins les dépenses de cette période.
                 for (const docSnap of envSnap.docs) {
                     if (docSnap.id === ENV_PERIOD_ID || docSnap.data().deleted) continue;
-                    const newReste = remainingForEnvelope(docSnap.data(), monthOps);
+                    const newReste = remainingForEnvelope(docSnap.data(), monthOps,docSnap.id);
                     await updateDoc(doc(db, "enveloppes", docSnap.id), { reste: newReste });
                 }
 
@@ -867,6 +881,8 @@
                             <button class="env-action-btn env-btn-del"  onclick="deleteEnv(${argument(env.docId)})">suppr.</button>
                         </div>
                     </div>
+                    ${(enveloppesFixes.has(env.docId) || env.saisieRapide) ? `<button type="button" class="env-saisir" data-saisir="${html(env.docId)}"
+                        ${saisiesEnCours.has(env.docId) || !(montant>0) ? 'disabled' : ''}>Saisir cette dépense</button>` : ''}
                     <div class="env-bar-wrap">
                         <div class="env-bar ${stateClass}" style="width:${pct}%"></div>
                     </div>
@@ -905,6 +921,7 @@
             const modal = document.getElementById('envModal');
             const resteWrap = document.getElementById('envModalResteWrap');
             document.getElementById('envModalId').value = docId || '';
+            document.getElementById('envModalSaisir').hidden = Boolean(docId);
 
             if (docId) {
                 // Mode modification
@@ -933,36 +950,44 @@
             document.getElementById('envModal').classList.remove('open');
         };
 
-        window.saveEnvModal = async () => {
+        let sauvegardeEnv = false;
+        window.saveEnvModal = async (saisir = false) => {
+            if (sauvegardeEnv) return;
             const docId     = document.getElementById('envModalId').value;
             const nom       = document.getElementById('envModalNom').value.trim().toLowerCase();
             const montant   = parseFloat(document.getElementById('envModalMontant').value);
             const categorie = document.getElementById('envModalCategorie').value;
 
-            if (!nom || isNaN(montant) || montant < 0) return;
-
-            if (docId) {
-                // Modification
-                const reste = parseFloat(document.getElementById('envModalReste').value);
-                await updateDoc(doc(db, "enveloppes", docId), {
-                    nom,
-                    montant,
-                    categorie,
-                    reste: isNaN(reste) ? montant : reste
-                });
-            } else {
-                // Ajout : l'ID = nom normalisé (espaces conservés, Firestore les accepte)
-                const newId = nom;
-                await setDoc(doc(db, "enveloppes", newId), {
-                    nom,
-                    montant,
-                    categorie,
-                    reste: montant,
-                    multiplicateur: null,
-                    lastResetMonth: currentMonthKey()
-                });
+            if (!nom || nom.includes('/') || nom === ENV_PERIOD_ID) return alert('Indique un nom d’enveloppe valide.');
+            if (!Number.isFinite(montant) || montant < 0 || (saisir && montant === 0)) return alert('Vérifie le budget mensuel.');
+            sauvegardeEnv = true;
+            const boutons = document.querySelectorAll('#envModal button');
+            boutons.forEach(b=>b.disabled=true);
+            try {
+                if (docId) {
+                    const reste = parseFloat(document.getElementById('envModalReste').value);
+                    await updateDoc(doc(db,'enveloppes',docId),{nom,montant,categorie,reste:isNaN(reste)?montant:reste});
+                } else {
+                    const lot = writeBatch();
+                    lot.create(doc(db,'enveloppes',nom),{nom,montant,categorie,reste:saisir?0:montant,
+                        multiplicateur:null,lastResetMonth:currentMonthKey(),saisieRapide:true});
+                    if (saisir) {
+                        const op = donneesOperation('depense',localDateISO(new Date()),nom,montant,'');
+                        lot.set(doc(db,'operations',crypto.randomUUID()),{...op,enveloppeId:nom});
+                    }
+                    await lot.commit();
+                    if (saisir) {
+                        await recalculerEnveloppes();
+                        confirmerSaisie(nom,montant);
+                    }
+                }
+                closeEnvModal();
+            } catch(error) {
+                alert(error.message);
+            } finally {
+                boutons.forEach(b=>b.disabled=false);
+                sauvegardeEnv = false;
             }
-            closeEnvModal();
         };
 
         window.deleteEnv = async (docId) => {
@@ -1077,28 +1102,51 @@
         };
 
         // --- ENREGISTREMENT ---
+        function donneesOperation(type, date, tiers, montant, note) {
+            return {
+                Date:date,Tiers:tiers,'Dépenses':type==='depense' ? montant : '',
+                Recettes:type==='recette' ? montant : '', 'E/C':'c','moyen de paiement':'',
+                P:'',V:'',note,timestamp:new Date().toISOString()
+            };
+        }
+        async function enregistrerOperation(type,date,tiers,montant,note,enveloppeId) {
+            const op = donneesOperation(type,date,tiers,montant,note);
+            if (enveloppeId) op.enveloppeId = enveloppeId;
+            await addDoc(opsColl,op);
+            if (type === 'depense') await recalculerEnveloppes();
+        }
+
+        function confirmerSaisie(nom,montant) {
+            document.getElementById('env-saisie-info').textContent = nom+' · '+fmt(montant)+' enregistré dans l’historique.';
+        }
+        document.getElementById('enveloppes-list').addEventListener('click',async event=>{
+            const bouton = event.target.closest('button[data-saisir]');
+            if (!bouton) return;
+            const id = bouton.dataset.saisir;
+            if (saisiesEnCours.has(id)) return;
+            const env = envSnapshot.find(d=>d.id===id)?.data();
+            if (!env || env.deleted || !(env.montant>0)) return;
+            const info = document.getElementById('env-saisie-info');
+            saisiesEnCours.add(id);
+            bouton.disabled = true;
+            try {
+                await enregistrerOperation('depense',localDateISO(new Date()),env.nom,cleanVal(env.montant),'',id);
+                confirmerSaisie(env.nom,cleanVal(env.montant));
+            } catch(error) {
+                info.textContent = 'Échec de l’enregistrement · '+error.message;
+            } finally {
+                window.setTimeout(()=>{
+                    saisiesEnCours.delete(id);
+                    renderEnveloppes(envSnapshot);
+                },700);
+            }
+        });
+
         document.getElementById('formOperation').addEventListener('submit', async (e) => {
             e.preventDefault();
             const type = document.querySelector('input[name="typeOp"]:checked').value;
-            const montantVal = parseFloat(document.getElementById('montant').value);
-            const tiersVal = document.getElementById('tiers').value;
-
-            const op = {
-                "Date": document.getElementById('date').value,
-                "Tiers": tiersVal,
-                "Dépenses": type === 'depense' ? montantVal : "",
-                "Recettes": type === 'recette' ? montantVal : "",
-                "E/C": "c",
-                "moyen de paiement": "",
-                "P": "", "V": "", "note": document.getElementById('note').value.trim(), "timestamp": new Date().toISOString()
-            };
-
-            await addDoc(opsColl, op);
-
-            // Recalcul complet des enveloppes depuis l'historique du mois
-            if (type === 'depense') {
-                await recalculerEnveloppes();
-            }
+            await enregistrerOperation(type,document.getElementById('date').value,document.getElementById('tiers').value,
+                parseFloat(document.getElementById('montant').value),document.getElementById('note').value.trim());
 
             document.getElementById('formOperation').reset();
             document.getElementById('date').valueAsDate = new Date();
@@ -1220,7 +1268,7 @@
             const isDep = cleanVal(op["Dépenses"]) > 0;
             document.getElementById('opModalType').value = isDep ? 'depense' : 'recette';
             document.getElementById('opModalMontant').value = isDep ? cleanVal(op["Dépenses"]) : cleanVal(op["Recettes"]);
-            document.getElementById('opModalCompte').value = op["E/C"] || 'E';
+            document.getElementById('opModalCompte').value = String(op["E/C"] || 'E').toUpperCase();
             document.getElementById('opModalNote').value = op.note || '';
             document.getElementById('opModal').classList.add('open');
         };

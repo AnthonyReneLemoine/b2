@@ -2,6 +2,7 @@
 export const tables = ['operations', 'enveloppes', 'cartes'];
 export const keyOf = (table,id) => JSON.stringify([table,id]);
 export function newValue(current, action) {
+  if (action.type === 'create' && current != null && !current.deleted) throw Error('Une enveloppe porte déjà ce nom.');
   if (action.type === 'delete') return null;
   if (action.type === 'update' && current == null) throw Error('Cette entrée a été supprimée.');
   return action.type === 'update' ? {...current,...action.data} : action.data;
@@ -107,7 +108,7 @@ export function createStore(base, backend, onError) {
     addDoc:async(q,data)=>{const ref=doc(null,q.table,crypto.randomUUID());await write([action(ref,data,'set')]);return ref;},
     writeBatch() {
       const actions=[];
-      return {set:(ref,data)=>actions.push(action(ref,data,'set')),update:(ref,data)=>actions.push(action(ref,data,'update')),commit:()=>write(actions)};
+      return {create:(ref,data)=>actions.push(action(ref,data,'create')),set:(ref,data)=>actions.push(action(ref,data,'set')),update:(ref,data)=>actions.push(action(ref,data,'update')),commit:()=>write(actions)};
     },
     close(){listeners.clear();stop();}
   };
