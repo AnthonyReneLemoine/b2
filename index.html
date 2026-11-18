@@ -177,21 +177,6 @@
         #sync-help::backdrop {background:#17232f99}
         #sync-help button {margin-left:1rem}
         #session-info button {border:0;background:transparent;color:inherit;text-decoration:underline;font:inherit}
-        .echeancier {width:min(100%,32rem);color:var(--primary)}
-        .echeancier article,.echeancier details,.echeancier form {background:white;border-radius:14px;padding:1rem;margin:0 0 .75rem;box-sizing:border-box;max-width:none}
-        .echeancier h2,.echeancier h3 {margin:.2rem 0 .7rem}
-        .echeancier p {margin:.4rem 0;line-height:1.45}
-        .echeancier button {padding:.55rem .8rem;margin:.35rem .4rem 0 0;border:1px solid #c8d4df;background:white;color:var(--primary);border-radius:9px;font:inherit;cursor:pointer}
-        .echeancier .principal {color:white;background:var(--primary)}
-        .echeancier input,.echeancier select {box-sizing:border-box;text-align:left}
-        .echeancier label {margin:.65rem 0 .25rem;text-align:left;text-transform:none;font-size:.9rem;color:var(--primary)}
-        .echeancier summary {cursor:pointer;font-weight:600}
-        .echeancier .chiffres {background:var(--primary);color:white}
-        .echeancier .chiffres strong {font-size:1.35rem}
-        .echeancier .echeance {border-left:4px solid #3181aa}
-        .echeancier .regle {padding:.7rem 0;border-top:1px solid #dae2e7}
-        .echeancier dialog {border:0;border-radius:14px;color:inherit;width:min(27rem,82vw)}
-        .echeancier dialog::backdrop {background:#17232f99}
     </style>
     <link rel="icon" type="image/png" href="./iconmonstr-bank.png">
 </head>
@@ -228,7 +213,6 @@
     <div class="tab-bar">
         <button class="tab-btn active" id="tab-saisie" onclick="showScreen('saisie')">Saisie</button>
         <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">Historique</button>
-        <button class="tab-btn" id="tab-echeances" onclick="showScreen('echeances')">Prélèvements</button>
         <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">Rapport</button>
         <button class="tab-btn" id="tab-enveloppes" onclick="showScreen('enveloppes')">Enveloppes</button>
         <button class="tab-btn" id="tab-cartes" onclick="showScreen('cartes')">Cartes du mois</button>
@@ -272,33 +256,6 @@
             </div>
         </div>
         <div id="history-list" style="width: 100%;"></div>
-    </div>
-
-    <div class="screen" id="screen-echeances">
-        <section class="echeancier">
-            <h2>Prélèvements mensuels</h2>
-            <article class="chiffres">
-                <p id="ech-borne"></p>
-                <p>À prélever · <strong id="ech-restant"></strong></p>
-                <p>Solde prévu après prélèvements · <b id="ech-solde"></b></p>
-            </article>
-            <div id="ech-liste"></div>
-            <details id="ech-gestion"><summary>Gérer les prélèvements mensuels</summary>
-                <button type="button" id="ech-ajouter" class="principal">Ajouter un prélèvement</button>
-                <div id="ech-regles"></div>
-            </details>
-            <dialog id="ech-dialog" aria-labelledby="ech-titre">
-                <form id="ech-form">
-                    <h3 id="ech-titre">Ajouter un prélèvement</h3>
-                    <label for="ech-tiers">Fournisseur</label><input id="ech-tiers" list="tiersList" required maxlength="120">
-                    <label for="ech-montant">Montant mensuel (€)</label><input type="number" id="ech-montant" step="0.01" min="0.01" required inputmode="decimal">
-                    <label for="ech-debut">Première échéance</label><input type="date" id="ech-debut" required>
-                    <p>La première dépense est inscrite dès l’enregistrement. Les suivantes sont ajoutées à leur échéance, au dernier jour du mois si nécessaire.</p>
-                    <button type="submit" class="principal">Enregistrer</button><button type="button" id="ech-annuler">Annuler</button>
-                </form>
-            </dialog>
-            <p role="status" id="ech-message"></p>
-        </section>
     </div>
 
     <div class="screen" id="screen-rapport">
@@ -498,7 +455,6 @@
     </div><!-- /app-shell -->
 
     <script type="module">
-        import { installerEcheancier } from './echeancier.mjs';
         import { demoStore } from './essai.mjs';
         const el = id => document.getElementById(id);
         const loginError = el('loginError');
@@ -689,9 +645,7 @@
             };
         };
 
-        const actualiserEcheancier = installerEcheancier(store,currentPayPeriodRange,async()=>{ await recalculerEnveloppes(); await updateHeader(); });
         const renderPayPeriod = () => {
-            actualiserEcheancier.afficher();
             const { debut, finExclusive, early } = currentPayPeriodRange();
             const fin = new Date(finExclusive + 'T12:00:00');
             fin.setDate(fin.getDate() - 1);
@@ -701,7 +655,7 @@
 
         const expensesForPeriod = (snap, debut, finExclusive) => snap.docs
             .map(d => d.data())
-            .filter(op => op.X !== 'x' && (!op.echeanceId || op.Date <= localDateISO(new Date())) && cleanVal(op['Dépenses']) > 0 && op.Date >= debut && op.Date < finExclusive)
+            .filter(op => op.X !== 'x' && cleanVal(op['Dépenses']) > 0 && op.Date >= debut && op.Date < finExclusive)
             .map(op => ({ tiers: (op.Tiers || '').toLowerCase().trim(), montant: cleanVal(op['Dépenses']) }));
 
         const remainingForEnvelope = (env, operations) => {
@@ -1098,7 +1052,6 @@
 
         // --- NAVIGATION ---
         window.showScreen = (n) => {
-            if (n === 'echeances') actualiserEcheancier.afficher();
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('screen-' + n).classList.add('active');
@@ -1248,11 +1201,8 @@
                 r += cleanVal(doc.data()["Recettes"]);
                 d += cleanVal(doc.data()["Dépenses"]);
             });
-            const aujourdhui = localDateISO(new Date());
-            const aVenir = snap.docs.map(d=>d.data()).filter(op=>op.echeanceId && op.X !== 'x' && op.Date > aujourdhui)
-                .reduce((total,op)=>total+cleanVal(op.Recettes)-cleanVal(op['Dépenses']),0);
-            lastSolde = r - d - aVenir;
-            document.getElementById('headSolde').innerText = fmt(lastSolde);
+            lastSolde = r - d;
+            document.getElementById('headSolde').innerText = fmt(r - d);
             document.getElementById('rapportRecette').innerText = fmt(r);
             document.getElementById('rapportDepense').innerText = fmt(d);
             updateHeadReste();
@@ -1261,8 +1211,8 @@
         // Cache des 40 dernières opérations pour ouverture rapide du modal
         let opsCache = {};
 
-        window.openOpModal = (id, operation) => {
-            const op = operation || opsCache[id];
+        window.openOpModal = (id) => {
+            const op = opsCache[id];
             if (!op) return;
             document.getElementById('opModalId').value = id;
             document.getElementById('opModalDate').value = op.Date || '';
@@ -1270,7 +1220,7 @@
             const isDep = cleanVal(op["Dépenses"]) > 0;
             document.getElementById('opModalType').value = isDep ? 'depense' : 'recette';
             document.getElementById('opModalMontant').value = isDep ? cleanVal(op["Dépenses"]) : cleanVal(op["Recettes"]);
-            document.getElementById('opModalCompte').value = String(op["E/C"] || 'E').toUpperCase();
+            document.getElementById('opModalCompte').value = op["E/C"] || 'E';
             document.getElementById('opModalNote').value = op.note || '';
             document.getElementById('opModal').classList.add('open');
         };
@@ -1334,7 +1284,6 @@
                         <div class="op-main">
                             <small style="color:#999">${html(op.Date)}</small><br>
                             <span class="op-name">${html(op.Tiers)}</span>
-                            ${op.echeanceId ? '<small class="op-note">Prélèvement mensuel</small>' : ''}
                             ${op.note ? `<small class="op-note">${html(op.note)}</small>` : ''}
                             <div style="margin-top:5px;">
                                 <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField(${argument(id)},'P',${argument(op.P)})">C</button>
@@ -1522,7 +1471,6 @@
         await recalculerEnveloppes(); // rattrape les opérations déjà saisies
         document.getElementById('btnNouvellePaie').disabled = false;
         await initCartes();
-        await actualiserEcheancier.demarrer();
         } // end initApp
     </script>
 </body>
