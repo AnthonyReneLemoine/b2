@@ -570,7 +570,7 @@
         // si lastResetMonth != période de paie courante (28 du mois → 27 du mois suivant) → reste = montant.
         // Cela fonctionne sur tous les appareils via onSnapshot.
 
-        const enveloppesFixes = new Set(['malakoff','mh','mma','youtube']);
+        const enveloppesFixes = new Set(['malakoff','mh','mma','youtube','ai']);
         const saisiesEnCours = new Set();
         const defautsConnectes = [
             { id: "carburant",                    nom: "carburant",                   montant: 60,     multiplicateur: null },
@@ -835,16 +835,17 @@
                 (groups[cat] || groups['banque']).push(id);
             });
 
+            const troisDernieres = new Set(CATEGORIES.flatMap(c => groups[c.key]).slice(-3));
             const renderGroupe = (titre, ids) => {
                 const items = ids.map(id => envMap[id]).filter(Boolean);
                 if (!items.length) return '';
-                return `<div class="env-section-title">${titre}</div>` + items.map(renderEnvCard).join('');
+                return `<div class="env-section-title">${titre}</div>` + items.map(env => renderEnvCard(env, troisDernieres.has(env.docId))).join('');
             };
 
             list.innerHTML = CATEGORIES.map(c => renderGroupe(c.titre, groups[c.key])).join('');
         };
 
-        const renderEnvCard = (env) => {
+        const renderEnvCard = (env, enBasDeListe) => {
             const reste         = env.reste ?? env.montant;
             const montant       = env.montant;
             const totalDepenses = montant - reste;
@@ -881,7 +882,7 @@
                             <button class="env-action-btn env-btn-del"  onclick="deleteEnv(${argument(env.docId)})">suppr.</button>
                         </div>
                     </div>
-                    ${(enveloppesFixes.has(env.docId) || env.saisieRapide) ? `<button type="button" class="env-saisir" data-saisir="${html(env.docId)}"
+                    ${(enveloppesFixes.has(env.docId) || env.saisieRapide || enBasDeListe) ? `<button type="button" class="env-saisir" data-saisir="${html(env.docId)}"
                         ${saisiesEnCours.has(env.docId) || !(montant>0) ? 'disabled' : ''}>Saisir cette dépense</button>` : ''}
                     <div class="env-bar-wrap">
                         <div class="env-bar ${stateClass}" style="width:${pct}%"></div>
