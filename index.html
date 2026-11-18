@@ -181,6 +181,11 @@
         #sync-help::backdrop {background:#17232f99}
         #sync-help button {margin-left:1rem}
         #session-info button {border:0;background:transparent;color:inherit;text-decoration:underline;font:inherit}
+        .tiers-frequents {display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+        .tiers-frequents:empty,.tiers-frequents[hidden] {display:none}
+        .tiers-frequents button {max-width:100%;overflow-wrap:anywhere;border:1px solid #c8d7dd;border-radius:9px;background:#f5f8fa;color:#284455;padding:7px 10px;line-height:1.25;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
+        .tiers-frequents button[aria-pressed=true] {background:#294b60;border-color:#294b60;color:white}
+        .tiers-frequents button:focus-visible {outline:2px solid #256c9e;outline-offset:2px}
     </style>
     <link rel="icon" type="image/png" href="./iconmonstr-bank.png">
 </head>
@@ -241,11 +246,12 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>Tiers / Fournisseur</label>
+                <label for="tiers">Tiers / Fournisseur</label>
                 <input type="text" id="tiers" list="tiersList" placeholder="Ex: Drive Leclerc" required>
                 <datalist id="tiersList"></datalist>
+                <div id="tiers-frequents" class="tiers-frequents" role="group" aria-label="Fournisseurs fréquents"></div>
             </div>
-            <div class="form-group"><label>Montant (€)</label><input type="number" step="0.01" id="montant" placeholder="0.00" required inputmode="decimal"></div>
+            <div class="form-group"><label for="montant">Montant (€)</label><input type="number" step="0.01" id="montant" placeholder="0.00" required inputmode="decimal"></div>
             <div class="form-group"><label>Note (optionnelle)</label><input type="text" id="note" placeholder="Ex: courses semaine"></div>
             <button type="submit" id="btnAjouter">ENREGISTRER</button>
         </form>
@@ -461,6 +467,7 @@
     </div><!-- /app-shell -->
 
     <script type="module">
+        import {cleFournisseur,fournisseursFrequents} from './fournisseurs.mjs';
         import { demoStore } from './essai.mjs';
         const el = id => document.getElementById(id);
         const loginError = el('loginError');
@@ -1006,7 +1013,43 @@
         };
 
         // --- AUTOCOMPLETE TIERS ---
+        const raccourcis = document.getElementById('tiers-frequents');
+        const champTiers = document.getElementById('tiers');
+        const dateSaisie = document.getElementById('date');
+        let operationsDuBudget = [];
+        function marquerFournisseur() {
+            const choix = cleFournisseur(champTiers.value);
+            for (const bouton of raccourcis.children) {
+                bouton.setAttribute('aria-pressed',String(cleFournisseur(bouton.textContent) === choix));
+            }
+        }
+        function afficherFournisseurs() {
+            raccourcis.hidden = !document.getElementById('d').checked;
+            if (raccourcis.hidden) return;
+            const noms = fournisseursFrequents(operationsDuBudget,dateSaisie.value);
+            if (noms.length !== raccourcis.children.length || noms.some((nom,i)=>nom !== raccourcis.children[i].textContent)) {
+                raccourcis.replaceChildren(...noms.map(nom=>{
+                    const bouton = document.createElement('button');
+                    bouton.type = 'button';
+                    bouton.textContent = nom;
+                    return bouton;
+                }));
+            }
+            marquerFournisseur();
+        }
+        raccourcis.addEventListener('click',event=>{
+            const bouton = event.target.closest('button');
+            if (!bouton) return;
+            champTiers.value = bouton.textContent;
+            marquerFournisseur();
+            document.getElementById('montant').focus();
+        });
+        champTiers.addEventListener('input',marquerFournisseur);
+        dateSaisie.addEventListener('change',afficherFournisseurs);
+        document.querySelectorAll('input[name="typeOp"]').forEach(radio=>radio.addEventListener('change',afficherFournisseurs));
         const updateTiersList = (docs) => {
+            operationsDuBudget = docs.map(d=>d.data());
+            afficherFournisseurs();
             const uniqueTiers = [...new Set(docs.map(d => d.data()["Tiers"]).filter(Boolean))].sort();
             const dl = document.getElementById('tiersList');
             const dlR = document.getElementById('tiersListRapport');
@@ -1150,7 +1193,8 @@
                 parseFloat(document.getElementById('montant').value),document.getElementById('note').value.trim());
 
             document.getElementById('formOperation').reset();
-            document.getElementById('date').valueAsDate = new Date();
+            dateSaisie.value = localDateISO(new Date());
+            afficherFournisseurs();
             showScreen('historique');
             updateHeader();
         });
@@ -1394,7 +1438,7 @@
 
         // --- INITIALISATION ---
         const today = new Date();
-        document.getElementById('date').valueAsDate = today;
+        dateSaisie.value = localDateISO(today);
         document.getElementById('r-fin').valueAsDate = today;
         const firstOpSnap = await getDocs(query(opsColl, orderBy("Date", "asc"), limit(1)));
         if (!firstOpSnap.empty && firstOpSnap.docs[0].data()["Date"]) {

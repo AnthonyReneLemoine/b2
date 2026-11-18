@@ -1,5 +1,5 @@
 import {mkdir,copyFile} from 'node:fs/promises';
 await mkdir('dist',{recursive:true});
-for (const file of ['index.html','iconmonstr-bank.png','essai.mjs','firebase-essai.mjs']) {
+for (const file of ['index.html','iconmonstr-bank.png','essai.mjs','fournisseurs.mjs','firebase-essai.mjs']) {
   await copyFile(file,'dist/'+file);
 }
