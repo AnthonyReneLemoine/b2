@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BANK - v25</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>B2 · Budget personnel</title>
+
     <style>
         :root { --bg: #f0f2f5; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --danger: #e74c3c; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
@@ -149,7 +149,6 @@
         .env-modal-cancel { flex: 1; padding: 13px; border: 1px solid #e0e0e0; border-radius: 12px; background: white; font-size: 14px; cursor: pointer; font-family: inherit; }
         .env-modal-save   { flex: 2; padding: 13px; border: none; border-radius: 12px; background: var(--success); color: white; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
 
-        .version { position: fixed; bottom: 8px; right: 12px; font-size: 10px; color: #cbd5e0; font-weight: bold; }
         .calc-box { width:100%; max-width:400px; padding:20px; box-sizing:border-box; background:white; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,.05); }
         .calc-display { width:100%; min-height:60px; box-sizing:border-box; padding:14px; margin-bottom:12px; border-radius:12px; background:#f0f2f5; color:var(--primary); text-align:right; font-size:25px; overflow-wrap:anywhere; }
         .calc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
@@ -158,8 +157,23 @@
         .calc-grid .calc-equal { background:var(--success); color:white; }
         .calc-grid .calc-clear { color:var(--danger); }
         @media (max-width:480px) { .tab-btn { font-size:9px; } }
+
+        *,*::before,*::after {box-sizing:border-box}
+        button,summary {cursor:pointer}
+        button,input,select,textarea {font-family:inherit}
+        .login-logo img {margin:auto;display:block}
+        .login-box {width:min(92vw,365px)}
+        .login-box .subtitle {text-align:center;color:#526575;margin:8px 0 20px}
+        .login-box details {margin-top:14px}
+        .login-box summary {font-size:.9rem;margin-bottom:12px}
+        #btnGoogle,#btnDemo {width:100%;padding:13px;border-radius:10px;border:1px solid #c7d1d8;font-size:1rem;font-weight:600;margin-bottom:8px}
+        #btnGoogle {background:var(--primary);color:white}
+        #btnDemo {background:white;color:var(--primary)}
+        #session-info {position:fixed;top:110px;width:100%;text-align:center;background:#e6edf3;color:#263f52;font-size:13px;padding:4px;z-index:10}
+        .screen {padding-top:150px}
+        @media(max-width:620px){.tab-bar{overflow-x:auto}.tab-btn{min-width:70px}.screen{padding-top:165px}}
     </style>
-    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAC4jAAAuIwF4pT92AAAGNGlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgMTAuMC1jMDAwIDI1LkcuZWY3MmU0ZSwgMjAyNS8wNi8yNy0xODo1NDowNSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDI3LjMgKFdpbmRvd3MpIiB4bXA6Q3JlYXRlRGF0ZT0iMjAyNi0wMi0wNVQxODo1NToyNyswMTowMCIgeG1wOk1vZGlmeURhdGU9IjIwMjYtMDItMDVUMTg6NTU6NTIrMDE6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjYtMDItMDVUMTg6NTU6NTIrMDE6MDAiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiBwaG90b3Nob3A6Q29sb3JNb2RlPSIzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjg3ODBhMGIwLTE5ZGUtMGE0MS04NDhlLTk2NDJkMmI5Njc4ZSIgeG1wTU06RG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOjk2NDU5M2U1LTJjNWYtMTg0YS1hYzQ3LTY4NmRiZWI5N2RjMSIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjUzYzQ0MDk0LWZlMjYtYjY0MC1iMTkyLWI2Mjc1MDA0NGI2NSI+IDx4bXBNTTpIaXN0b3J5PiA8cmRmOlNlcT4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNyZWF0ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6NTNjNDQwOTQtZmUyNi1iNjQwLWIxOTItYjYyNzUwMDQ0YjY1IiBzdEV2dDp3aGVuPSIyMDI2LTAyLTA1VDE4OjU1OjI3KzAxOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjcuMyAoV2luZG93cykiLz4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNvbnZlcnRlZCIgc3RFdnQ6cGFyYW1ldGVycz0iZnJvbSBhcHBsaWNhdGlvbi92bmQuYWRvYmUucGhvdG9zaG9wIHRvIGltYWdlL3BuZyIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6ODc4MGEwYjAtMTlkZS0wYTQxLTg0OGUtOTY0MmQyYjk2NzhlIiBzdEV2dDp3aGVuPSIyMDI2LTAyLTA1VDE4OjU1OjUyKzAxOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjcuMyAoV2luZG93cykiIHN0RXZ0OmNoYW5nZWQ9Ii8iLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+g8FX/AAAAYdJREFUeNrt3LFtwzAURVGN4lE8QkbwCB5BG3CkjJBRPIKjQkWQRrAgkI/k+cBr0ijIMS4CF1qW/u+27WffbXFN72vba9t732v/mWtw5Q/E/xV/nvqJeh9Mwhok6mgS1ihRR5OwBomSsMBESVhooiQsMFESFpgoCQtNlIQFJkrCAhMlYaGJkrDARElYYKKmTljpCGLohPWSqCkS1luihk5YGQii64SNkqghEjZaorpOWJkIIjphsySqi4TNlqjohBUAGQmTqKCESVRQwiQqJGESFZQwiQpKmESFJEyighImUUEJk6iQhElUWMKe21aL2HNxzrmx73FBKz/9CuF+wTPvJ74yqv3MU/d9wX8Un/6i6wXPXE98CGo/EwgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIEBiQR7eBpT1NiDnnAu61aru8LxDt+6AADEgQAwIEAMyG8gvnMeAp3LyAlYAAAAASUVORK5CYII=">
+    <link rel="icon" type="image/png" href="./iconmonstr-bank.png">
 </head>
 <body>
 
@@ -168,23 +182,26 @@
         <div class="login-box">
             <div class="login-logo">
                 <img src="iconmonstr-bank.png" alt="logo">
-                <h2>BANK</h2>
+                <h2>B2 · Budget personnel</h2>
             </div>
-            <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="vous@email.com" autocomplete="username"></div>
-            <div class="form-group"><label>Mot de passe</label><input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"></div>
-            <button id="btnLogin">SE CONNECTER</button>
-            <div id="loginError"></div>
+            <p class="subtitle">Version privée de test</p>
+            <button id="btnGoogle" disabled>Continuer avec Google</button>
+            <button id="btnDemo">Essayer avec un budget fictif</button>
+            <details><summary>Connexion par e-mail</summary>
+            <div class="form-group"><label for="loginEmail">E-mail</label><input type="email" id="loginEmail" placeholder="vous@email.com" autocomplete="username"></div>
+            <div class="form-group"><label for="loginPassword">Mot de passe</label><input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"></div>
+            <button id="btnLogin" disabled>Se connecter par e-mail</button></details>
+            <div id="loginError" role="status" aria-live="polite"></div>
         </div>
     </div>
 
     <!-- Application (cachée jusqu'à authentification) -->
-    <div id="app-shell">
+    <div id="app-shell"><div id="session-info" role="status"></div>
 
     <div class="header-banner">
         <div class="recap-item"><span class="recap-label">Solde aujourd'hui</span><span class="recap-val" id="headSolde">...</span></div>
         <div style="width:1px; height:35px; background:rgba(255,255,255,0.15);"></div>
         <div class="recap-item"><span class="recap-label">Reste à la fin du mois</span><span class="recap-val" id="headReste">...</span></div>
-        <span style="font-size:9px; color:rgba(255,255,255,0.35); position:absolute; bottom:4px; right:52px; letter-spacing:0.5px;">v38</span>
         <button id="btnLogout" title="Se déconnecter">⏻</button>
     </div>
 
@@ -424,70 +441,88 @@
         </div>
     </div>
 
-    <div class="version">VERSION 25</div>
 
     </div><!-- /app-shell -->
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
-            authDomain: "banque-3fd70.firebaseapp.com",
-            projectId: "banque-3fd70",
-            storageBucket: "banque-3fd70.firebasestorage.app",
-            messagingSenderId: "892055695539",
-            appId: "1:892055695539:web:731b02c49224949ba1c0c6"
+        import { demoStore } from './essai.mjs';
+        const el = id => document.getElementById(id);
+        const loginError = el('loginError');
+        let api, activeStore, activeUid, signingIn = false, demo = false;
+        let generation = 0;
+        const setBusy = busy => {
+            signingIn = busy;
+            el('btnGoogle').disabled = busy || !api;
+            el('btnLogin').disabled = busy || !api;
+            el('btnDemo').disabled = busy;
         };
+        function report(error) {
+            const messages = {
+                'auth/unauthorized-domain': 'Ajoute '+location.hostname+' aux domaines autorisés de Firebase Authentication dans le projet banque-3fd70.',
+                'auth/operation-not-allowed': 'Active cette méthode de connexion dans Firebase Authentication pour banque-3fd70.',
+                'auth/popup-blocked': 'Autorise les fenêtres pop-up pour ouvrir le choix du compte Google.',
+                'auth/popup-closed-by-user': 'Connexion Google annulée.',
+                'auth/invalid-credential': 'Adresse e-mail ou mot de passe incorrect.',
+                'permission-denied': 'Firebase a refusé cette opération. Vérifie les droits du compte dans le projet banque-3fd70.'
+            };
+            const target = activeStore ? el('session-info') : loginError;
+            target.textContent = messages[error.code] || error.message;
+        }
+        window.addEventListener('unhandledrejection', event => { report(event.reason); });
+        async function openStore(store, label, isDemo) {
+            activeStore = store;
+            el('session-info').textContent = label;
+            el('login-screen').classList.add('hidden');
+            el('app-shell').classList.add('visible');
+            try { await initApp(store,isDemo); } catch(error) { report(error); }
+        }
+        el('btnDemo').onclick = async () => {
+            demo = true;
+            ++generation;
+            setBusy(true);
+            await openStore(demoStore(),'Budget fictif · Essai enregistré sur cet appareil',true);
+        };
+        async function signIn(action) {
+            if(signingIn)return;
+            setBusy(true);loginError.textContent='';
+            try { await action(); }
+            catch(error) { report(error);setBusy(false); }
+        }
+        el('btnGoogle').onclick = () => signIn(()=>api.google());
+        el('btnLogin').onclick = () => signIn(()=>api.password(el('loginEmail').value.trim(),el('loginPassword').value));
+        el('loginPassword').onkeydown = event => { if(event.key==='Enter')el('btnLogin').click(); };
+        el('btnLogout').onclick = async () => {
+            if(!demo && api) await api.logout();
+            activeStore?.close();
+            location.reload();
+        };
+        import('./firebase-essai.mjs').then(module=>{
+            api=module;
+            if(!demo)setBusy(false);
+            api.observe(async user=>{
+                if(demo)return;
+                const current=++generation;
+                if(activeStore && user?.uid!==activeUid){activeStore.close();location.reload();return;}
+                if(!user || activeStore)return;
+                setBusy(true);
+                loginError.textContent='Chargement du budget…';
+                try {
+                    const {store,label}=await api.connectedStore(user,report);
+                    if(current!==generation || demo){store.close();return;}
+                    activeUid=user.uid;
+                    await openStore(store,label,false);
+                } catch(error) {
+                    if(current!==generation)return;
+                    report(error);setBusy(false);
+                }
+            });
+        }).catch(()=>{if(!demo)loginError.textContent='Le service Firebase est indisponible. Le budget fictif reste accessible.';});
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const opsColl = collection(db, "operations");
-        const envColl = collection(db, "enveloppes");
-        const cartesColl = collection(db, "cartes");
-
-        // --- AUTH UI ---
-        const loginScreen = document.getElementById('login-screen');
-        const appShell    = document.getElementById('app-shell');
-        const loginError  = document.getElementById('loginError');
-
-        document.getElementById('btnLogin').addEventListener('click', async () => {
-            const email = document.getElementById('loginEmail').value.trim();
-            const pwd   = document.getElementById('loginPassword').value;
-            loginError.textContent = '';
-            if (!email || !pwd) { loginError.textContent = 'Veuillez remplir tous les champs.'; return; }
-            try {
-                await signInWithEmailAndPassword(auth, email, pwd);
-            } catch (e) {
-                loginError.textContent = 'Email ou mot de passe incorrect.';
-            }
-        });
-        document.getElementById('loginPassword').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') document.getElementById('btnLogin').click();
-        });
-
-        document.getElementById('btnLogout').addEventListener('click', async () => {
-            await signOut(auth);
-        });
-
-        let appInitialized = false;
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                loginScreen.classList.add('hidden');
-                appShell.classList.add('visible');
-                if (!appInitialized) { appInitialized = true; initApp(); }
-            } else {
-                loginScreen.classList.remove('hidden');
-                appShell.classList.remove('visible');
-            }
-        });
-
-        async function initApp() {
-
+        async function initApp(store,isDemo) {
+        const {db,collection,doc,getDocs,onSnapshot,query,orderBy,limit,setDoc,updateDoc,addDoc,deleteDoc,writeBatch}=store;
+        const opsColl=collection(db,'operations'), envColl=collection(db,'enveloppes'), cartesColl=collection(db,'cartes');
+        const html = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const argument = value => html(JSON.stringify(String(value ?? '')));
         const cleanVal = (v) => {
             if (!v || v === "") return 0;
             if (typeof v === "number") return v;
@@ -505,7 +540,10 @@
         // si lastResetMonth != période de paie courante (28 du mois → 27 du mois suivant) → reste = montant.
         // Cela fonctionne sur tous les appareils via onSnapshot.
 
-        const ENVELOPPES_DEFAUT = [
+        const ENVELOPPES_DEFAUT = isDemo ? [
+            {id:'courses',nom:'courses',montant:150,multiplicateur:null},
+            {id:'loisirs',nom:'loisirs',montant:40,multiplicateur:null}
+        ] : [
             { id: "carburant",                    nom: "carburant",                   montant: 60,     multiplicateur: null },
             { id: "resto",                         nom: "resto",                        montant: 60,     multiplicateur: null },
             { id: "leclerc",                       nom: "leclerc",                      montant: 500,    multiplicateur: 4    },
@@ -785,7 +823,7 @@
                         <span class="env-mult-label">× 125€ :</span>
                         ${[1,2,3,4,5].map(m => `
                             <button class="env-mult-btn ${m === mult ? 'active' : ''}"
-                                onclick="setMultiplicateur('${env.docId}', ${m})">${m}</button>
+                                onclick="setMultiplicateur(${argument(env.docId)}, ${m})">${m}</button>
                         `).join('')}
                         <span style="font-size:10px; color:#7f8c8d; margin-left:4px;">= ${fmt(mult * 125)}</span>
                     </div>
@@ -795,14 +833,14 @@
             return `
                 <div class="env-card">
                     <div class="env-card-inner">
-                        <div class="env-nom">${env.nom}</div>
+                        <div class="env-nom">${html(env.nom)}</div>
                         <div class="env-amounts">
                             <div class="env-reste ${stateClass}">${fmt(totalDepenses)}</div>
                             <div class="env-montant">/ ${fmt(montant)}</div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:4px; margin-left:8px;">
-                            <button class="env-action-btn env-btn-edit" onclick="openEnvModal('${env.docId}')">mod.</button>
-                            <button class="env-action-btn env-btn-del"  onclick="deleteEnv('${env.docId}')">suppr.</button>
+                            <button class="env-action-btn env-btn-edit" onclick="openEnvModal(${argument(env.docId)})">mod.</button>
+                            <button class="env-action-btn env-btn-del"  onclick="deleteEnv(${argument(env.docId)})">suppr.</button>
                         </div>
                     </div>
                     <div class="env-bar-wrap">
@@ -922,7 +960,7 @@
             const uniqueTiers = [...new Set(docs.map(d => d.data()["Tiers"]).filter(Boolean))].sort();
             const dl = document.getElementById('tiersList');
             const dlR = document.getElementById('tiersListRapport');
-            const options = uniqueTiers.map(t => `<option value="${t}">`).join('');
+            const options = uniqueTiers.map(t => `<option value="${html(t)}">`).join('');
             dl.innerHTML = options;
             dlR.innerHTML = options;
         };
@@ -950,7 +988,7 @@
         const renderTags = () => {
             const wrap = document.getElementById('r-fourn-tags');
             wrap.innerHTML = fournisseursTags.map((f, i) => `
-                <div class="tag">${f} <span class="tag-x" onclick="removeTag(${i})">×</span></div>
+                <div class="tag">${html(f)} <span class="tag-x" onclick="removeTag(${i})">×</span></div>
             `).join('');
         };
 
@@ -1102,9 +1140,9 @@
                 return `
                     <div class="op-card ${isDep ? 'depense' : 'recette'}">
                         <div class="op-main">
-                            <small style="color:#999">${data.Date}</small><br>
-                            <span class="op-name">${data.Tiers}</span>
-                            ${data.note ? `<small class="op-note">${data.note}</small>` : ''}
+                            <small style="color:#999">${html(data.Date)}</small><br>
+                            <span class="op-name">${html(data.Tiers)}</span>
+                            ${data.note ? `<small class="op-note">${html(data.note)}</small>` : ''}
                         </div>
                         <div class="op-amt" style="color:${isDep ? 'var(--danger)' : 'var(--success)'}">${fmt(isDep ? -d : r)}</div>
                     </div>`;
@@ -1220,18 +1258,18 @@
                 return `
                     <div class="op-card ${isDep ? 'depense' : 'recette'}">
                         <div class="op-main">
-                            <small style="color:#999">${op.Date}</small><br>
-                            <span class="op-name">${op.Tiers}</span>
-                            ${op.note ? `<small class="op-note">${op.note}</small>` : ''}
+                            <small style="color:#999">${html(op.Date)}</small><br>
+                            <span class="op-name">${html(op.Tiers)}</span>
+                            ${op.note ? `<small class="op-note">${html(op.note)}</small>` : ''}
                             <div style="margin-top:5px;">
-                                <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField('${id}','P','${op.P}')">C</button>
-                                <button class="btn-toggle ${op.V === 'x' ? 'active-v' : ''}" onclick="toggleField('${id}','V','${op.V}')">D</button>
-                                <button class="btn-toggle ${op.X === 'x' ? 'active-x' : ''}" onclick="toggleField('${id}','X','${op.X}')" title="Exclure du solde et des enveloppes">E</button>
+                                <button class="btn-toggle ${op.P === 'x' ? 'active-p' : ''}" onclick="toggleField(${argument(id)},'P',${argument(op.P)})">C</button>
+                                <button class="btn-toggle ${op.V === 'x' ? 'active-v' : ''}" onclick="toggleField(${argument(id)},'V',${argument(op.V)})">D</button>
+                                <button class="btn-toggle ${op.X === 'x' ? 'active-x' : ''}" onclick="toggleField(${argument(id)},'X',${argument(op.X)})" title="Exclure du solde et des enveloppes">E</button>
                             </div>
                         </div>
                         <div class="op-amt" style="color: ${isDep ? 'var(--danger)' : 'var(--success)'}">${fmt(isDep ? -dep : rec)}</div>
-                        <button class="btn-edit" onclick="openOpModal('${id}')">✎</button>
-                        <button class="btn-del" onclick="supprOp('${id}')">×</button>
+                        <button class="btn-edit" onclick="openOpModal(${argument(id)})">✎</button>
+                        <button class="btn-del" onclick="supprOp(${argument(id)})">×</button>
                     </div>
                 `;
             }).join('');
@@ -1296,7 +1334,7 @@
         // --- CARTES DU MOIS ---
         const MOIS_FR = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
-        const CARTES_HISTORIQUE = [
+        const CARTES_HISTORIQUE = isDemo ? [] : [
             {annee:2022,mois:8,montant:863.80},{annee:2022,mois:9,montant:1104.52},{annee:2022,mois:10,montant:738.40},{annee:2022,mois:11,montant:1055.76},{annee:2022,mois:12,montant:1232.77},
             {annee:2023,mois:1,montant:1486.26},{annee:2023,mois:2,montant:702.85},{annee:2023,mois:3,montant:968.77},{annee:2023,mois:4,montant:947.59},{annee:2023,mois:5,montant:1358.20},{annee:2023,mois:6,montant:1199.94},{annee:2023,mois:7,montant:1001.89},{annee:2023,mois:8,montant:1371.20},{annee:2023,mois:9,montant:1000.12},{annee:2023,mois:10,montant:1018.40},{annee:2023,mois:11,montant:1509.46},{annee:2023,mois:12,montant:1613.23},
             {annee:2024,mois:1,montant:1889.57},{annee:2024,mois:2,montant:981.33},{annee:2024,mois:3,montant:917.45},{annee:2024,mois:4,montant:1112.99},{annee:2024,mois:5,montant:1386.38},{annee:2024,mois:6,montant:1119.90},{annee:2024,mois:7,montant:1423.41},{annee:2024,mois:8,montant:775.78},{annee:2024,mois:9,montant:883.70},{annee:2024,mois:10,montant:1257.35},{annee:2024,mois:11,montant:1136.79},{annee:2024,mois:12,montant:1714.92},
@@ -1315,7 +1353,7 @@
             } catch(e) {
                 const list = document.getElementById('cartes-list');
                 if (list) list.innerHTML = `<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:14px; color:#856404; font-size:13px;">
-                    <strong>Accès Firestore refusé</strong> — Ajoute la règle pour la collection <code>cartes</code> dans la console Firebase.<br><small>${e.message}</small>
+                    <strong>Accès Firestore refusé</strong> — Vérifie les droits de l’espace de test.<br><small>${html(e.message)}</small>
                 </div>`;
             }
         };
@@ -1339,7 +1377,7 @@
                         <div style="font-size:17px; font-weight:800; color:#2c3e50;">${fmt(moyenne)}</div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="font-size:11px; text-transform:uppercase; color:#999; letter-spacing:0.5px; margin-bottom:2px;">Dernier mois (${MOIS_FR[dernier.mois]} ${dernier.annee})</div>
+                        <div style="font-size:11px; text-transform:uppercase; color:#999; letter-spacing:0.5px; margin-bottom:2px;">Dernier mois (${MOIS_FR[dernier.mois]} ${html(dernier.annee)})</div>
                         <div style="font-size:17px; font-weight:800; color:var(--danger);">${fmt(dernier.montant)}</div>
                     </div>
                     <div style="text-align:center;">
@@ -1367,13 +1405,13 @@
                         <td style="padding:7px 10px; color:#555;">${MOIS_FR[mois]}</td>
                         <td style="padding:7px 10px; text-align:right; font-weight:700; color:var(--danger);">${fmt(montant)}</td>
                         <td style="padding:7px 8px; text-align:right; font-weight:700; font-size:12px; color:${rowPctColor};">${rowPct} %</td>
-                        <td style="padding:7px 6px; text-align:center;"><button onclick="supprimerCarte('${ds.id}')" style="background:none; border:none; color:#ccc; font-size:16px; cursor:pointer; line-height:1;">×</button></td>
+                        <td style="padding:7px 6px; text-align:center;"><button onclick="supprimerCarte(${argument(ds.id)})" style="background:none; border:none; color:#ccc; font-size:16px; cursor:pointer; line-height:1;">×</button></td>
                     </tr>`;
                 }).join('');
                 const total = byYear[annee].reduce((s, ds) => s + ds.data().montant, 0);
                 return `<div style="margin-bottom:16px; background:white; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.07); overflow:hidden;">
                     <div style="background:#2c3e50; color:white; padding:8px 14px; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:800; font-size:15px;">${annee}</span>
+                        <span style="font-weight:800; font-size:15px;">${html(annee)}</span>
                         <span style="font-size:12px; color:#bdc3c7;">Total : ${fmt(total)}</span>
                     </div>
                     <table style="width:100%; border-collapse:collapse;">${rows}</table>
@@ -1399,7 +1437,7 @@
         onSnapshot(cartesColl, (snap) => { renderCartes(snap.docs); }, (err) => {
             const list = document.getElementById('cartes-list');
             if (list) list.innerHTML = `<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:14px; color:#856404; font-size:13px;">
-                <strong>Accès Firestore refusé</strong> — Ajoute la règle pour la collection <code>cartes</code> dans la console Firebase.<br><small>${err.message}</small>
+                <strong>Accès Firestore refusé</strong> — Vérifie les droits de l’espace de test.<br><small>${html(err.message)}</small>
             </div>`;
         });
 
