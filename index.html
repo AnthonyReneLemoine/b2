@@ -172,6 +172,11 @@
         #session-info {position:fixed;top:110px;width:100%;text-align:center;background:#e6edf3;color:#263f52;font-size:13px;padding:4px;z-index:10}
         .screen {padding-top:150px}
         @media(max-width:620px){.tab-bar{overflow-x:auto}.tab-btn{min-width:70px}.screen{padding-top:165px}}
+            #sync-help {border:0;border-radius:14px;max-width:min(36rem,90vw);padding:1.3rem;color:var(--primary)}
+        #sync-help pre {white-space:pre-wrap;overflow-wrap:anywhere;background:#eef3f7;padding:.8rem;user-select:all}
+        #sync-help::backdrop {background:#17232f99}
+        #sync-help button {margin-left:1rem}
+        #session-info button {border:0;background:transparent;color:inherit;text-decoration:underline;font:inherit}
     </style>
     <link rel="icon" type="image/png" href="./iconmonstr-bank.png">
 </head>
@@ -442,6 +447,15 @@
     </div>
 
 
+    <dialog id="sync-help" aria-labelledby="sync-title">
+        <h2 id="sync-title">Synchroniser les essais entre appareils</h2>
+        <p>Les modifications sont enregistrées dans ce navigateur. Pour les synchroniser, ouvre les règles Firestore du projet banque-3fd70.</p>
+        <p>Dans le bloc <code>match /databases/{database}/documents</code>, ajoute cette règle à la suite des règles existantes. Elle réserve ton espace d’essai à ton identifiant Firebase.</p>
+        <pre id="sync-rule"></pre>
+        <p>Publie les règles, puis rouvre B2 avec le même compte dans ce navigateur. Les modifications locales seront reprises dans l’espace d’essai.</p>
+        <a href="https://console.firebase.google.com/project/banque-3fd70/firestore/rules" target="_blank" rel="noopener">Ouvrir les règles Firestore</a>
+        <button type="button" onclick="this.closest('dialog').close()">Fermer</button>
+    </dialog>
     </div><!-- /app-shell -->
 
     <script type="module">
@@ -507,10 +521,24 @@
                 setBusy(true);
                 loginError.textContent='Chargement du budget…';
                 try {
-                    const {store,label}=await api.connectedStore(user,report);
+                    const {store,label,needsRule}=await api.connectedStore(user,report);
                     if(current!==generation || demo){store.close();return;}
                     activeUid=user.uid;
                     await openStore(store,label,false);
+                    if (needsRule) {
+                        const button=document.createElement('button');
+                        button.type='button';
+                        button.textContent='Activer la synchronisation';
+                        button.onclick=()=>el('sync-help').showModal();
+                        el('session-info').append(' · ',button);
+                        el('sync-rule').textContent=[
+                            'match /b2_essais/{uid}/modifications/{document} {',
+                            '  allow read, write: if request.auth != null',
+                            '    && request.auth.uid == uid',
+                            '    && uid == '+JSON.stringify(user.uid)+';',
+                            '}'
+                        ].join('\n');
+                    }
                 } catch(error) {
                     if(current!==generation)return;
                     report(error);setBusy(false);

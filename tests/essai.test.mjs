@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createStore,browserDrafts,tables} from '../essai.mjs';
+import {createStore,browserDrafts,accountDrafts,tables} from '../essai.mjs';
 
 function fixture() {
   const base=Object.fromEntries(tables.map(t=>[t,new Map()]));
@@ -42,4 +42,29 @@ test('les opérations ajoutées sont visibles par date et conservées entre ouve
   const last=await reopened.getDocs(reopened.query(ops,reopened.orderBy('Date','desc'),reopened.limit(1)));
   assert.equal(last.docs[0].data().Dépenses,12.5);
   assert.equal(base.operations.size,1);
+});
+
+test('l’essai connecté reste disponible après fermeture et reste propre au compte',async()=>{
+  const {base}=fixture(), values=new Map();
+  const storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)};
+  const open=uid=>createStore(base,accountDrafts(storage,'banque-test',uid));
+  const first=open('compte-A');
+  await first.addDoc(first.collection(null,'operations'),{Date:'2026-11-20',Dépenses:15});
+  first.close();
+  const reopened=open('compte-A'), other=open('compte-B');
+  assert.equal((await reopened.getDocs(reopened.collection(null,'operations'))).docs.length,2);
+  assert.equal((await other.getDocs(other.collection(null,'operations'))).docs.length,1);
+});
+test('une reprise interrompue conserve les lignes locales restant à synchroniser',async()=>{
+  const {base}=fixture(), local=browserDrafts(null);
+  const entries=Array.from({length:101},(_,i)=>({ref:{table:'operations',id:'test-'+i},type:'set',data:{Recettes:i}}));
+  await local.apply(entries,base);
+  let batches=0;
+  await assert.rejects(()=>local.resume(async group=>{
+    if(++batches===2)throw Error('Accès refusé');
+    assert.equal(group.length,100);
+  }),/Accès refusé/);
+  assert.equal(local.read().size,1);
+  await local.resume(async group=>assert.equal(group.length,1));
+  assert.equal(local.read().size,0);
 });

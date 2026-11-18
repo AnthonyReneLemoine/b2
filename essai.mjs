@@ -11,7 +11,26 @@ export function browserDrafts(storage, key) {
   function read() {
     return storage ? new Map(JSON.parse(storage.getItem(key) || '[]')) : new Map(memory);
   }
+  function persist(drafts) {
+    if (storage) storage.setItem(key,JSON.stringify([...drafts]));
+    else memory=drafts;
+  }
+  function withLock(work) {
+    return storage && globalThis.navigator?.locks ? navigator.locks.request(key,work) : work();
+  }
   return {
+    // Une écriture dans un autre onglet attend la fin de cette reprise.
+    async resume(upload) {
+      return withLock(async () => {
+        const pending=read();
+        while (pending.size) {
+          const group=[...pending].slice(0,100);
+          await upload(group);
+          for (const [id] of group) pending.delete(id);
+          persist(pending);
+        }
+      });
+    },
     read, watch(notify) {
       const changed = event => { if(event.key === key) notify(read()); };
       globalThis.addEventListener?.('storage',changed);
@@ -22,16 +41,20 @@ export function browserDrafts(storage, key) {
         const drafts=read();
         for (const action of actions) {
           const {table,id}=action.ref, k=keyOf(table,id);
-          const value=newValue(drafts.has(k)?drafts.get(k):base[table].get(id),action);
-          drafts.set(k,value);
+          const previous=drafts.has(k)?drafts.get(k):base[table].get(id);
+          const value=newValue(previous,action);
+          if (JSON.stringify(previous)!==JSON.stringify(value)) drafts.set(k,value);
         }
-        if (storage) storage.setItem(key,JSON.stringify([...drafts]));
-        else memory=drafts;
+        persist(drafts);
         return drafts;
       };
-      return storage && globalThis.navigator?.locks ? navigator.locks.request(key,commit) : commit();
+      return withLock(commit);
     }
   };
+}
+export function accountDrafts(storage, projectId, uid) {
+  if (!uid || !projectId) throw Error('Compte Firebase manquant.');
+  return browserDrafts(storage,'b2.essai.compte.v1.' + JSON.stringify([projectId,uid]));
 }
 export function createStore(base, backend, onError) {
   let drafts=backend.read(), queue=Promise.resolve();

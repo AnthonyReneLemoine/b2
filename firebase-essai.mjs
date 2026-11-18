@@ -1,7 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, collection, getDocsFromServer, doc, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-import {tables, keyOf, newValue, createStore, browserDrafts} from './essai.mjs';
+import {tables, keyOf, newValue, createStore, accountDrafts} from './essai.mjs';
         const firebaseConfig = {
             apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
             authDomain: "banque-3fd70.firebaseapp.com",
@@ -50,11 +50,54 @@ export async function connectedStore(user,onError) {
   }));
   const base=Object.fromEntries(rows);
   const ref=collection(db,'b2_essais',user.uid,'modifications');
+  const local=accountDrafts(localStorage,firebaseConfig.projectId,user.uid);
+  let baseline;
+  let recovered;
   try {
-    const snap=await getDocsFromServer(ref);
-    return {store:createStore(base,cloudDrafts(ref,snap),onError),label:'Essai Firebase synchronisé'};
+    baseline=await getDocsFromServer(ref);
+    if (local.read().size) {
+      recovered=draftMap(baseline);
+      await local.resume(async group=>{
+        await restoreDrafts(ref,group);
+        for (const [key,value] of group) recovered.set(key,value);
+      });
+      baseline=await getDocsFromServer(ref);
+    }
+    return {store:createStore(base,cloudDrafts(ref,baseline),onError),label:'Essai Firebase synchronisé'};
   } catch(error) {
-    if(error.code!=='permission-denied')throw error;
-    return {store:createStore(base,browserDrafts(null,null)),label:'Essai temporaire · Modifications conservées jusqu’à la fermeture ou au rechargement'};
+    if (error.code!=='permission-denied' && error.code!=='draft-conflict') throw error;
+    // Inclure les lots déjà repris si un lot ultérieur a échoué.
+    if (recovered) {
+      for (const [key,value] of recovered) {
+        const [table,id]=JSON.parse(key);
+        if(value===null) base[table].delete(id); else base[table].set(id,value);
+      }
+    }
+    const label=error.code==='draft-conflict'
+      ? 'Sauvegarde sur cet appareil · Une modification différente existe déjà sur Firebase.'
+      : 'Sauvegarde sur cet appareil';
+    return {store:createStore(base,local,onError),label,needsRule:error.code==='permission-denied'};
   }
+}
+function ordered(value) {
+  if (Array.isArray(value)) return value.map(ordered);
+  if (value && typeof value==='object') return Object.fromEntries(Object.keys(value).sort().map(k=>[k,ordered(value[k])]));
+  return value;
+}
+async function restoreDrafts(ref,group) {
+  await runTransaction(db,async tx=>{
+    const records=await Promise.all(group.map(async ([key,value])=>{
+      const [table,id]=JSON.parse(key);
+      if (!tables.includes(table) || !id || typeof id!=='string' || id.includes('/')) throw Error('Modification locale invalide.');
+      const path=doc(ref,table+'-'+id);
+      const snapshot=await tx.get(path);
+      if (snapshot.exists() && JSON.stringify(ordered(snapshot.data().value)) !== JSON.stringify(ordered(value))) {
+        const error=Error('Versions locale et distante différentes.');
+        error.code='draft-conflict';
+        throw error;
+      }
+      return {path,exists:snapshot.exists(),data:{table,id,value}};
+    }));
+    for (const record of records) if(!record.exists) tx.set(record.path,record.data);
+  });
 }
