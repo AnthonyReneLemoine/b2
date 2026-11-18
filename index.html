@@ -181,9 +181,10 @@
         #sync-help::backdrop {background:#17232f99}
         #sync-help button {margin-left:1rem}
         #session-info button {border:0;background:transparent;color:inherit;text-decoration:underline;font:inherit}
-        .tiers-frequents {display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+        #formOperation {max-width:52rem}
+        .tiers-frequents {display:flex;flex-wrap:nowrap;gap:6px;margin-top:8px;padding:4px;overflow-x:auto}
         .tiers-frequents:empty,.tiers-frequents[hidden] {display:none}
-        .tiers-frequents button {max-width:100%;overflow-wrap:anywhere;border:1px solid #c8d7dd;border-radius:9px;background:#f5f8fa;color:#284455;padding:7px 10px;line-height:1.25;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
+        .tiers-frequents button {flex:1 0 auto;white-space:nowrap;border:1px solid #c8d7dd;border-radius:9px;background:#f5f8fa;color:#284455;padding:7px 10px;line-height:1.25;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
         .tiers-frequents button[aria-pressed=true] {background:#294b60;border-color:#294b60;color:white}
         .tiers-frequents button:focus-visible {outline:2px solid #256c9e;outline-offset:2px}
     </style>
