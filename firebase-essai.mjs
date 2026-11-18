@@ -1,7 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, collection, getDocsFromServer, doc, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-import {tables, keyOf, newValue, createStore, accountDrafts} from './essai.mjs';
+import {sources, tables, keyOf, newValue, createStore, accountDrafts} from './essai.mjs';
         const firebaseConfig = {
             apiKey: "AIzaSyABmCu61-jScR4yDAqFKJ_RXwcKAmok4pg",
             authDomain: "banque-3fd70.firebaseapp.com",
@@ -44,11 +44,11 @@ function cloudDrafts(ref,snapshot) {
 }
 export async function connectedStore(user,onError) {
   // Les trois collections du site d’origine ne sont utilisées qu’en lecture.
-  const rows=await Promise.all(tables.map(async table=>{
+  const rows=await Promise.all(sources.map(async table=>{
     const snap=await getDocsFromServer(collection(db,table));
     return [table,new Map(snap.docs.map(d=>[d.id,d.data()]))];
   }));
-  const base=Object.fromEntries(rows);
+  const base=Object.fromEntries([...rows,['prelevements',new Map()]]);
   const ref=collection(db,'b2_essais',user.uid,'modifications');
   const local=accountDrafts(localStorage,firebaseConfig.projectId,user.uid);
   let baseline;

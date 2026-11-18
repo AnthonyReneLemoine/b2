@@ -177,6 +177,21 @@
         #sync-help::backdrop {background:#17232f99}
         #sync-help button {margin-left:1rem}
         #session-info button {border:0;background:transparent;color:inherit;text-decoration:underline;font:inherit}
+        .echeancier {width:min(100%,32rem);color:var(--primary)}
+        .echeancier article,.echeancier details,.echeancier form {background:white;border-radius:14px;padding:1rem;margin:0 0 .75rem;box-sizing:border-box;max-width:none}
+        .echeancier h2,.echeancier h3 {margin:.2rem 0 .7rem}
+        .echeancier p {margin:.4rem 0;line-height:1.45}
+        .echeancier button {padding:.55rem .8rem;margin:.35rem .4rem 0 0;border:1px solid #c8d4df;background:white;color:var(--primary);border-radius:9px;font:inherit;cursor:pointer}
+        .echeancier .principal {color:white;background:var(--primary)}
+        .echeancier input,.echeancier select {box-sizing:border-box;text-align:left}
+        .echeancier label {margin:.65rem 0 .25rem;text-align:left;text-transform:none;font-size:.9rem;color:var(--primary)}
+        .echeancier summary {cursor:pointer;font-weight:600}
+        .echeancier .chiffres {background:var(--primary);color:white}
+        .echeancier .chiffres strong {font-size:1.35rem}
+        .echeancier .echeance {border-left:4px solid #3181aa}
+        .echeancier .regle {padding:.7rem 0;border-top:1px solid #dae2e7}
+        .echeancier dialog {border:0;border-radius:14px;color:inherit;width:min(27rem,82vw)}
+        .echeancier dialog::backdrop {background:#17232f99}
     </style>
     <link rel="icon" type="image/png" href="./iconmonstr-bank.png">
 </head>
@@ -213,6 +228,7 @@
     <div class="tab-bar">
         <button class="tab-btn active" id="tab-saisie" onclick="showScreen('saisie')">Saisie</button>
         <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">Historique</button>
+        <button class="tab-btn" id="tab-echeances" onclick="showScreen('echeances')">Prélèvements</button>
         <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">Rapport</button>
         <button class="tab-btn" id="tab-enveloppes" onclick="showScreen('enveloppes')">Enveloppes</button>
         <button class="tab-btn" id="tab-cartes" onclick="showScreen('cartes')">Cartes du mois</button>
@@ -256,6 +272,40 @@
             </div>
         </div>
         <div id="history-list" style="width: 100%;"></div>
+    </div>
+
+    <div class="screen" id="screen-echeances">
+        <section class="echeancier">
+            <h2>Prélèvements mensuels</h2>
+            <article class="chiffres">
+                <p id="ech-borne"></p>
+                <p>À prélever · <strong id="ech-restant"></strong></p>
+                <p>Solde prévu après prélèvements · <b id="ech-solde"></b></p>
+            </article>
+            <div id="ech-liste"></div>
+            <details id="ech-gestion"><summary>Gérer les prélèvements mensuels</summary>
+                <button type="button" id="ech-ajouter" class="principal">Ajouter un prélèvement</button>
+                <div id="ech-regles"></div>
+            </details>
+            <dialog id="ech-dialog" aria-labelledby="ech-titre">
+                <form id="ech-form">
+                    <h3 id="ech-titre">Ajouter un prélèvement</h3>
+                    <label for="ech-tiers">Fournisseur</label><input id="ech-tiers" list="tiersList" required maxlength="120">
+                    <label for="ech-montant">Montant mensuel (€)</label><input type="number" id="ech-montant" step="0.01" min="0.01" required inputmode="decimal">
+                    <label for="ech-debut">Première échéance</label><input type="date" id="ech-debut" required>
+                    <p>Chaque mois au même jour, ou au dernier jour du mois s’il est plus court.</p>
+                    <button type="submit" class="principal">Enregistrer</button><button type="button" id="ech-annuler">Annuler</button>
+                </form>
+            </dialog>
+            <dialog id="ech-lien" aria-labelledby="ech-lien-titre">
+                <form id="ech-lien-form"><h3 id="ech-lien-titre">Associer une dépense</h3>
+                    <p id="ech-reference"></p>
+                    <label for="ech-op">Dépense enregistrée</label><select id="ech-op" required></select>
+                    <button type="submit" class="principal">Associer</button><button type="button" id="ech-fermer">Annuler</button>
+                </form>
+            </dialog>
+            <p role="status" id="ech-message"></p>
+        </section>
     </div>
 
     <div class="screen" id="screen-rapport">
@@ -455,6 +505,7 @@
     </div><!-- /app-shell -->
 
     <script type="module">
+        import { installerEcheancier } from './echeancier.mjs';
         import { demoStore } from './essai.mjs';
         const el = id => document.getElementById(id);
         const loginError = el('loginError');
@@ -645,7 +696,9 @@
             };
         };
 
+        const actualiserEcheancier = installerEcheancier(store,currentPayPeriodRange);
         const renderPayPeriod = () => {
+            actualiserEcheancier();
             const { debut, finExclusive, early } = currentPayPeriodRange();
             const fin = new Date(finExclusive + 'T12:00:00');
             fin.setDate(fin.getDate() - 1);
@@ -1052,6 +1105,7 @@
 
         // --- NAVIGATION ---
         window.showScreen = (n) => {
+            if (n === 'echeances') actualiserEcheancier();
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('screen-' + n).classList.add('active');

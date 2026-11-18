@@ -1,7 +1,11 @@
 // Les données sources servent de référence. Les écritures passent exclusivement par le stockage de l'essai.
-export const tables = ['operations', 'enveloppes', 'cartes'];
+import {modifierLien} from './prelevements.mjs';
+export const sources = ['operations', 'enveloppes', 'cartes'];
+export const tables = [...sources,'prelevements'];
 export const keyOf = (table,id) => JSON.stringify([table,id]);
 export function newValue(current, action) {
+  if (action.type === 'oublierLiens') return Object.fromEntries(Object.entries(current || {}).filter(([key]) => !key.startsWith(action.data.id+':')));
+  if (action.type === 'lier') return modifierLien(current ?? {},action.data);
   if (action.type === 'delete') return null;
   if (action.type === 'update' && current == null) throw Error('Cette entrée a été supprimée.');
   return action.type === 'update' ? {...current,...action.data} : action.data;
@@ -102,6 +106,11 @@ export function createStore(base, backend, onError) {
       return ()=>listeners.delete(entry);
     },
     setDoc:(ref,data,options)=>write([action(ref,data,options?.merge?'update':'set')]),
+    supprimerRegle:(id)=>write([
+      action(doc(null,'prelevements',id),null,'delete'),
+      action(doc(null,'prelevements','rapprochements'),{id},'oublierLiens')
+    ]),
+    lier:(data)=>write([action(doc(null,'prelevements','rapprochements'),data,'lier')]),
     updateDoc:(ref,data)=>write([action(ref,data,'update')]),
     deleteDoc:ref=>write([action(ref,null,'delete')]),
     addDoc:async(q,data)=>{const ref=doc(null,q.table,crypto.randomUUID());await write([action(ref,data,'set')]);return ref;},
