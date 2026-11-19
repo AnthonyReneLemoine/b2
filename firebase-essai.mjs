@@ -48,7 +48,7 @@ export async function connectedStore(user,onError) {
     const snap=await getDocsFromServer(collection(db,table));
     return [table,new Map(snap.docs.map(d=>[d.id,d.data()]))];
   }));
-  const base={...Object.fromEntries(rows),[tableNoms]:new Map()};
+  const base={...Object.fromEntries(rows),swile:new Map(),[tableNoms]:new Map()};
   const ref=collection(db,'b2_essais',user.uid,'modifications');
   const local=accountDrafts(localStorage,firebaseConfig.projectId,user.uid);
   let baseline;
@@ -88,7 +88,7 @@ async function restoreDrafts(ref,group) {
   await runTransaction(db,async tx=>{
     const records=await Promise.all(group.map(async ([key,value])=>{
       const [table,id]=JSON.parse(key);
-      if ((!tables.includes(table) && table!==tableNoms) || !id || typeof id!=='string' || id.includes('/')) throw Error('Modification locale invalide.');
+      if ((!tables.includes(table) && table!==tableNoms && table!=='swile') || !id || typeof id!=='string' || id.includes('/')) throw Error('Modification locale invalide.');
       const path=doc(ref,table+'-'+id);
       const snapshot=await tx.get(path);
       if (snapshot.exists() && JSON.stringify(ordered(snapshot.data().value)) !== JSON.stringify(ordered(value))) {

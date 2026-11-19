@@ -1,3 +1,4 @@
+import {jourSwile,verifierOuverture,verifierMouvement} from './swile.mjs';
 import {cleFournisseur} from './fournisseurs.mjs';
 // Les données sources servent de référence. Les écritures passent exclusivement par le stockage de l'essai.
 export const tables = ['operations', 'enveloppes', 'cartes'];
@@ -9,6 +10,15 @@ function lotDuFournisseur(id) {
 }
 export const keyOf = (table,id) => JSON.stringify([table,id]);
 export function newValue(current, action) {
+  if (action.type === 'ouvrirSwile') {
+    if (current) throw Error('Le solde de départ Swile est déjà enregistré.');
+    return action.data;
+  }
+  if (action.type === 'versionSwile') {
+    if (!current || current.version !== action.version)
+      throw Error('La carte Swile a été modifiée sur un autre appareil. Vérifie le solde puis réessaie.');
+    return {...current,version:action.data};
+  }
   if (action.type === 'noms') {
     const lot = {...current};
     for (const changement of action.data) {
@@ -80,7 +90,7 @@ export function accountDrafts(storage, projectId, uid) {
   return browserDrafts(storage,'b2.essai.compte.v1.' + JSON.stringify([projectId,uid]));
 }
 export function createStore(base, backend, onError) {
-  base = {...base,[tableNoms]:base[tableNoms] || new Map()};
+  base = {swile:new Map(),...base,[tableNoms]:base[tableNoms] || new Map()};
   let drafts=backend.read(), queue=Promise.resolve();
   const listeners=new Set();
   function lotCourant(lot) {
@@ -154,6 +164,24 @@ export function createStore(base, backend, onError) {
   };
   const action=(ref,data,type)=>({ref,data,type});
   return {
+    ouvrirSwile(carte) {
+      return enqueue(()=>{
+        verifierOuverture(carte,jourSwile());
+        return [action({table:'swile',id:'carte'},{...carte,version:0},'ouvrirSwile')];
+      });
+    },
+    saisirSwile(mouvement) {
+      return enqueue(()=>{
+        const donnees=donneesBrutes('swile'), carte=donnees.get('carte');
+        donnees.delete('carte');
+        verifierMouvement(carte,[...donnees.values()],mouvement,jourSwile());
+        const id=crypto.randomUUID();
+        return [
+          {type:'versionSwile',ref:{table:'swile',id:'carte'},version:carte.version,data:id},
+          action({table:'swile',id},mouvement,'set')
+        ];
+      });
+    },
     preparerRenommage,
     renommerFournisseur(source,nom,apercu) {
       return enqueue(()=>{

@@ -194,6 +194,30 @@
         .tiers-frequents button {flex:1 0 auto;white-space:nowrap;border:1px solid #c8d7dd;border-radius:9px;background:#f5f8fa;color:#284455;padding:7px 10px;line-height:1.25;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
         .tiers-frequents button[aria-pressed=true] {background:#294b60;border-color:#294b60;color:white}
         .tiers-frequents button:focus-visible {outline:2px solid #256c9e;outline-offset:2px}
+        .swile-recap {border:0;background:transparent;color:white;font:inherit;padding:4px}
+        .swile-recap .recap-label {color:#bbf1e2}
+        .swile-panel {width:min(100%,42rem);color:var(--primary)}
+        .swile-panel h2 {margin:0 0 .75rem;font-size:1.3rem}
+        .swile-panel form,.swile-panel details {width:100%;max-width:none}
+        .swile-panel details {margin:8px 0 16px}
+        .swile-panel summary {font-weight:600;padding:8px 0}
+        .swile-panel .form-group input {box-sizing:border-box}
+        .swile-panel .op-card {max-width:none;gap:10px;overflow-wrap:anywhere}
+        .swile-panel .op-main {min-width:0;flex:1}
+        .swile-panel .op-amt {white-space:nowrap}
+        .swile-ok {color:#156546}.swile-debit {color:#a13833}
+        .swile-action {background:#175e50;color:white;border:0;border-radius:10px;padding:10px 16px;font-weight:700}
+        [id^="swile-"][hidden]{display:none!important}
+        .swile-feedback {color:#933734;font-size:14px}
+        .swile-feedback:empty {display:none}
+        @media(max-width:620px){
+          .header-banner {height:90px;display:grid;grid-template-columns:1fr 1fr auto;align-content:center;row-gap:2px;padding:0 8px}
+          .header-banner>div[aria-hidden]{display:none}
+          .header-banner .recap-label{font-size:9px;letter-spacing:.35px}
+          .header-banner .recap-val{font-size:14px}
+          #btnLogout{grid-column:3;grid-row:1/3}
+          .tab-bar{top:90px}#session-info{top:135px}.screen{padding-top:180px}
+        }
     </style>
     <link rel="icon" type="image/png" href="./iconmonstr-bank.png">
 </head>
@@ -222,14 +246,17 @@
 
     <div class="header-banner">
         <div class="recap-item"><span class="recap-label">Solde aujourd'hui</span><span class="recap-val" id="headSolde">...</span></div>
-        <div style="width:1px; height:35px; background:rgba(255,255,255,0.15);"></div>
+        <div aria-hidden="true" style="width:1px; height:35px; background:rgba(255,255,255,0.15);"></div>
         <div class="recap-item"><span class="recap-label">Reste à la fin du mois</span><span class="recap-val" id="headReste">...</span></div>
+        <button type="button" class="recap-item swile-recap" onclick="showScreen('swile')"><span class="recap-label">Swile :</span><span class="recap-val" id="swile-solde">—</span></button>
+        <button type="button" class="recap-item swile-recap" onclick="showScreen('swile')"><span class="recap-label">Swile · disponible aujourd’hui</span><span class="recap-val" id="swile-dispo">—</span></button>
         <button id="btnLogout" title="Se déconnecter">⏻</button>
     </div>
 
     <div class="tab-bar">
         <button class="tab-btn active" id="tab-saisie" onclick="showScreen('saisie')">Saisie</button>
         <button class="tab-btn" id="tab-historique" onclick="showScreen('historique')">Historique</button>
+        <button class="tab-btn" id="tab-swile" onclick="showScreen('swile')">Swile</button>
         <button class="tab-btn" id="tab-rapport" onclick="showScreen('rapport')">Rapport</button>
         <button class="tab-btn" id="tab-enveloppes" onclick="showScreen('enveloppes')">Enveloppes</button>
         <button class="tab-btn" id="tab-cartes" onclick="showScreen('cartes')">Cartes du mois</button>
@@ -251,6 +278,7 @@
                 <div class="segmented-control" role="group" aria-labelledby="type-operation">
                     <input type="radio" name="typeOp" value="depense" id="d" checked><label for="d">Dépense</label>
                     <input type="radio" name="typeOp" value="recette" id="r"><label for="r">Recette</label>
+                    <input type="radio" name="typeOp" value="swile" id="s"><label for="s">Swile</label>
                 </div>
             </div>
             <div class="form-group">
@@ -261,10 +289,32 @@
             </div>
             <div class="form-group"><label for="montant">Montant (€)</label><input type="number" step="0.01" id="montant" placeholder="0.00" required inputmode="decimal"></div>
             <div class="form-group"><label>Note (optionnelle)</label><input type="text" id="note" placeholder="Ex: courses semaine"></div>
+            <p id="swile-saisie-erreur" class="swile-feedback" role="alert"></p>
             <button type="submit" id="btnAjouter">ENREGISTRER</button>
         </form>
     </div>
 
+    <section class="screen" id="screen-swile" aria-label="Carte Swile">
+      <div class="swile-panel">
+        <h2>Carte Swile</h2>
+        <form id="swile-ouverture" hidden>
+          <div class="form-group"><label for="swile-date">Date du solde de départ</label><input id="swile-date" type="date" required></div>
+          <div class="form-group"><label for="swile-initial">Solde restant sur la carte (€)</label><input id="swile-initial" type="number" min="0" step="0.01" inputmode="decimal" required></div>
+          <div class="form-group"><label for="swile-utilise">Déjà dépensé ce jour-là, inclus dans ce solde (€)</label><input id="swile-utilise" type="number" min="0" max="25" step="0.01" value="0" required></div>
+          <button class="swile-action">Enregistrer le solde de départ</button>
+        </form>
+        <div id="swile-suivi" hidden>
+          <p id="swile-reference"></p>
+          <button type="button" id="swile-ajouter" class="swile-action">Saisir une dépense Swile</button>
+          <details id="swile-details"><summary>Ajouter un rechargement</summary>
+            <form id="swile-recharge"><div class="form-group"><label for="swile-credit">Montant du rechargement de ce jour (€)</label><input id="swile-credit" type="number" min="0.01" step="0.01" required></div><button class="swile-action">Enregistrer le rechargement</button></form>
+          </details>
+          <h2>Historique Swile</h2>
+          <div id="swile-historique"></div>
+        </div>
+        <p id="swile-erreur" class="swile-feedback" role="alert"></p>
+      </div>
+    </section>
     <div class="screen" id="screen-historique">
         <div id="hist-toggle-bar" style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 5px 4px; box-sizing:border-box;">
             <input type="text" id="hist-search" placeholder="🔍 Fournisseur ou montant…" oninput="onHistSearch()" style="flex:1; min-width:160px; max-width:320px; padding:7px 12px; border:1px solid #e0e0e0; border-radius:20px; font-size:12px; background:#fff; outline:none;">
@@ -493,6 +543,7 @@
 
     <script type="module">
         import {cleFournisseur,fournisseursFrequents} from './fournisseurs.mjs';
+        import {bilanSwile,centimesSwile,jourSwile} from './swile.mjs';
         import { demoStore } from './essai.mjs';
         const el = id => document.getElementById(id);
         const loginError = el('loginError');
@@ -1211,17 +1262,98 @@
             }
         });
 
-        document.getElementById('formOperation').addEventListener('submit', async (e) => {
+        let carteSwile, mouvementsSwile=[], jourAfficheSwile=jourSwile();
+        const dateFrSwile = iso => iso.split('-').reverse().join('/');
+        function afficherSwile() {
+            const jour=jourSwile();
+            if (jourAfficheSwile!==jour && el('s').checked && dateSaisie.value===jourAfficheSwile) dateSaisie.value=jour;
+            jourAfficheSwile=jour;
+            el('swile-date').max=jour;
+            if (!el('swile-date').value) el('swile-date').value=jour;
+            el('swile-ouverture').hidden=Boolean(carteSwile);
+            el('swile-suivi').hidden=!carteSwile;
+            if (!carteSwile) {
+                el('swile-solde').textContent='—';
+                el('swile-dispo').textContent='—';
+                return;
+            }
+            const {solde,disponible}=bilanSwile(carteSwile,mouvementsSwile,jour);
+            el('swile-solde').textContent=fmt(solde/100);
+            el('swile-dispo').textContent=fmt(disponible/100);
+            el('swile-reference').textContent='Solde de départ au '+dateFrSwile(carteSwile.date)+' : '+fmt(carteSwile.initial/100)+' · Plafond de 25 € par jour.';
+        }
+        onSnapshot(collection(db,'swile'),snap=>{
+            carteSwile=snap.docs.find(d=>d.id==='carte')?.data();
+            mouvementsSwile=snap.docs.filter(d=>d.id!=='carte').map(d=>d.data())
+                .sort((a,b)=>b.date.localeCompare(a.date) || b.saisie.localeCompare(a.saisie));
+            afficherSwile();
+            el('swile-historique').innerHTML=mouvementsSwile.map(m=>{
+                const debit=m.type==='depense';
+                return `<div class="op-card"><div class="op-main"><small>${dateFrSwile(m.date)}</small><br><span class="op-name">${debit?html(m.tiers):'Rechargement'}</span>
+                    ${m.note?`<small class="op-note">${html(m.note)}</small>`:''}</div>
+                    <strong class="op-amt ${debit?'swile-debit':'swile-ok'}">${debit?'−':'+'}${fmt(m.montant/100)}</strong></div>`;
+            }).join('') || '<p>Aucune opération Swile enregistrée.</p>';
+        });
+        // Le plafond se renouvelle à minuit à Paris, y compris après la veille du téléphone.
+        function renouvelerJourSwile() {
+            afficherSwile();
+            const maintenant=new Date();
+            const delai=60000-(maintenant.getSeconds()*1000+maintenant.getMilliseconds());
+            setTimeout(renouvelerJourSwile,delai);
+        }
+        renouvelerJourSwile();
+        document.addEventListener('visibilitychange',()=>{if (!document.hidden) afficherSwile();});
+        function soumettreSwile(form,erreur,action) {
+            form.onsubmit=async event=>{
+                event.preventDefault();
+                const bouton=form.querySelector('button');
+                if (bouton.disabled) return;
+                bouton.disabled=true; erreur.textContent='';
+                try { await action(); }
+                catch (e) { erreur.textContent=e.message; }
+                finally { bouton.disabled=false; }
+            };
+        }
+        soumettreSwile(el('swile-ouverture'),el('swile-erreur'),()=>store.ouvrirSwile({
+            date:el('swile-date').value,initial:centimesSwile(el('swile-initial').value),utilise:centimesSwile(el('swile-utilise').value)
+        }));
+        soumettreSwile(el('swile-recharge'),el('swile-erreur'),async()=>{
+            await store.saisirSwile({type:'recharge',date:jourSwile(),montant:centimesSwile(el('swile-credit').value),saisie:new Date().toISOString()});
+            el('swile-recharge').reset(); el('swile-details').open=false;
+        });
+        el('swile-ajouter').onclick=()=>{
+            showScreen('saisie');el('s').checked=true;
+            el('s').dispatchEvent(new Event('change'));champTiers.focus();
+        };
+        el('formOperation').onchange=()=>{el('swile-saisie-erreur').textContent='';};
+        el('formOperation').addEventListener('submit', async (e) => {
             e.preventDefault();
             const type = document.querySelector('input[name="typeOp"]:checked').value;
-            await enregistrerOperation(type,document.getElementById('date').value,document.getElementById('tiers').value,
-                parseFloat(document.getElementById('montant').value),document.getElementById('note').value.trim());
-
-            document.getElementById('formOperation').reset();
-            dateSaisie.value = localDateISO(new Date());
-            afficherFournisseurs();
-            showScreen('historique');
-            updateHeader();
+            const valider=el('btnAjouter');
+            if (valider.disabled) return;
+            valider.disabled=true;
+            try {
+                if (type==='swile') {
+                    if (!carteSwile) {
+                        showScreen('swile');el('swile-initial').focus();
+                        el('swile-erreur').textContent='Enregistre le solde de départ, puis valide ta dépense dans Saisie.';
+                        return;
+                    }
+                    await store.saisirSwile({type:'depense',date:dateSaisie.value,tiers:champTiers.value.trim(),
+                        montant:centimesSwile(el('montant').value),note:el('note').value.trim(),saisie:new Date().toISOString()});
+                } else {
+                    await enregistrerOperation(type,dateSaisie.value,champTiers.value,parseFloat(el('montant').value),el('note').value.trim());
+                }
+                el('formOperation').reset();
+                el('swile-saisie-erreur').textContent='';
+                dateSaisie.value=localDateISO(new Date());
+                afficherFournisseurs();
+                showScreen(type==='swile'?'swile':'historique');
+                if (type!=='swile') updateHeader();
+            } catch(e) {
+                if (type==='swile') el('swile-saisie-erreur').textContent=e.message;
+                else report(e);
+            } finally { valider.disabled=false; }
         });
 
         // --- RAPPORT ---
