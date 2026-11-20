@@ -41,3 +41,28 @@ test('persistance et écritures concurrentes sans double débit ni effet bancair
   assert.deepEqual(bilanSwile(lignes.find(x=>x.id==='carte').data(),lignes.filter(x=>x.id!=='carte').map(x=>x.data()),date),{solde:0,disponible:0});
   for (const table of tables) assert.equal((await rouvert.getDocs({table})).empty,true);
 });
+
+test('corriger et supprimer une ligne Swile recalcule le solde, sans confondre deux dépenses identiques',async()=>{
+  const base=Object.fromEntries(tables.map(t=>[t,new Map()]));
+  const backend=browserDrafts(null), budget=createStore(base,backend), date=jourSwile();
+  const lignes=async()=>new Map((await budget.getDocs({table:'swile'})).docs.map(d=>[d.id,d.data()]));
+  await budget.ouvrirSwile({initial:500,utilise:0,date});
+  await budget.saisirSwile(mouvement(1500,date,'recharge'));
+  await budget.saisirSwile(mouvement(800,date));
+  await budget.saisirSwile(mouvement(800,date));
+  const avant=await lignes(), version=avant.get('carte').version;
+  const [credit,depense,autre]=[...avant.keys()].filter(id=>id!=='carte');
+  await assert.rejects(budget.corrigerSwile(credit,null,version),/négatif/);
+  await assert.rejects(budget.corrigerSwile(credit,mouvement(100,date,'recharge'),version),/négatif/);
+  await budget.corrigerSwile(depense,{...avant.get(depense),montant:1100,tiers:'Nouveau'},version);
+  const corrige=await lignes();
+  assert.equal(corrige.get(depense).tiers,'Nouveau');
+  assert.deepEqual(corrige.get(autre),avant.get(autre));
+  const bilan=rows=>bilanSwile(rows.get('carte'),[...rows].filter(([id])=>id!=='carte').map(([,v])=>v),date);
+  assert.deepEqual(bilan(corrige),{solde:100,disponible:100});
+  await assert.rejects(budget.corrigerSwile(depense,null,version),/changé/);
+  await budget.corrigerSwile(depense,null,corrige.get('carte').version);
+  assert.deepEqual(bilan(await lignes()),{solde:1200,disponible:1200});
+  const rouvert=createStore(base,backend);
+  assert.ok(!(await rouvert.getDocs({table:'swile'})).docs.some(d=>d.id===depense));
+});

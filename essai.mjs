@@ -163,6 +163,36 @@ export function createStore(base, backend, onError) {
     return {table,id};
   };
   const action=(ref,data,type)=>({ref,data,type});
+  function ecrireSwile(id, mouvement, versionAttendue, creation) {
+    return enqueue(()=>{
+      const donnees=donneesBrutes('swile'), carte=donnees.get('carte');
+      donnees.delete('carte');
+      if (!carte) throw Error('Renseigne d’abord le solde de départ.');
+      if (!creation && (!donnees.has(id) || carte.version !== versionAttendue))
+        throw Error('La carte a changé. Ferme cette fenêtre puis sélectionne à nouveau l’opération.');
+      const precedent=donnees.get(id);
+      donnees.delete(id);
+      const autres=[...donnees.values()];
+      if (mouvement) verifierMouvement(carte,autres,mouvement,jourSwile());
+      if (precedent?.type==='recharge') {
+        // Une recharge retirée, réduite ou reportée peut affecter des dépenses ultérieures.
+        const variations=new Map();
+        for (const op of mouvement ? [...autres,mouvement] : autres) {
+          const delta=op.type==='depense' ? -op.montant : op.montant;
+          variations.set(op.date,(variations.get(op.date)||0)+delta);
+        }
+        let solde=carte.initial;
+        for (const date of [...variations.keys()].sort()) {
+          solde+=variations.get(date);
+          if (solde<0) throw Error('Cette correction rendrait le solde négatif le '+date.split('-').reverse().join('/')+'.');
+        }
+      }
+      return [
+        {type:'versionSwile',ref:{table:'swile',id:'carte'},version:carte.version,data:crypto.randomUUID()},
+        action({table:'swile',id},mouvement,mouvement?'set':'delete')
+      ];
+    });
+  }
   return {
     ouvrirSwile(carte) {
       return enqueue(()=>{
@@ -171,16 +201,10 @@ export function createStore(base, backend, onError) {
       });
     },
     saisirSwile(mouvement) {
-      return enqueue(()=>{
-        const donnees=donneesBrutes('swile'), carte=donnees.get('carte');
-        donnees.delete('carte');
-        verifierMouvement(carte,[...donnees.values()],mouvement,jourSwile());
-        const id=crypto.randomUUID();
-        return [
-          {type:'versionSwile',ref:{table:'swile',id:'carte'},version:carte.version,data:id},
-          action({table:'swile',id},mouvement,'set')
-        ];
-      });
+      return ecrireSwile(crypto.randomUUID(),mouvement,null,true);
+    },
+    corrigerSwile(id,mouvement,versionAttendue) {
+      return ecrireSwile(id,mouvement,versionAttendue,false);
     },
     preparerRenommage,
     renommerFournisseur(source,nom,apercu) {

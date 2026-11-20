@@ -177,8 +177,8 @@
         .screen {padding-top:150px}
         @media(max-width:620px){.tab-bar{overflow-x:auto}.tab-btn{min-width:70px}.screen{padding-top:165px}}
             #sync-help {border:0;border-radius:14px;max-width:min(36rem,90vw);padding:1.3rem;color:var(--primary)}
-        #renommage-dialog { border:0; color:var(--primary); max-height:90vh; overflow:auto; }
-        #renommage-dialog::backdrop { background:#17232f99; }
+        #renommage-dialog, #swile-dialog { border:0; color:var(--primary); max-height:90vh; overflow:auto; }
+        #renommage-dialog::backdrop, #swile-dialog::backdrop { background:#17232f99; }
         #renommage-dialog p, #renommage-info { font-size:14px; line-height:1.45; }
         #renommage-dialog button:disabled { opacity:.5; }
         #renommage-info { width:100%; margin:4px 5px; }
@@ -205,6 +205,9 @@
         .swile-panel .op-card {max-width:none;gap:10px;overflow-wrap:anywhere}
         .swile-panel .op-main {min-width:0;flex:1}
         .swile-panel .op-amt {white-space:nowrap}
+        .swile-actions {display:flex;flex-direction:column;gap:4px}
+        .swile-actions button {font-size:.8rem;min-height:28px}
+        #swile-correction {width:100%;max-width:none;margin:0;padding:0;box-shadow:none}
         .swile-ok {color:#156546}.swile-debit {color:#a13833}
         .swile-action {background:#175e50;color:white;border:0;border-radius:10px;padding:10px 16px;font-weight:700}
         [id^="swile-"][hidden]{display:none!important}
@@ -515,6 +518,23 @@
     </div>
 
 
+    <dialog id="swile-dialog" class="env-modal-box" aria-labelledby="swile-titre">
+        <form id="swile-correction">
+            <h2 id="swile-titre" class="env-modal-title"></h2>
+            <p id="swile-confirmation" hidden></p>
+            <div id="swile-champs">
+                <div class="env-modal-field"><label for="swile-jour-op">Date</label><input id="swile-jour-op" type="date" required></div>
+                <div id="swile-fournisseur-champ" class="env-modal-field"><label for="swile-fournisseur">Fournisseur</label><input id="swile-fournisseur" type="text"></div>
+                <div class="env-modal-field"><label for="swile-montant-op">Montant (€)</label><input id="swile-montant-op" type="number" min="0.01" step="0.01" inputmode="decimal" required></div>
+                <div class="env-modal-field"><label for="swile-note-op">Note (facultative)</label><input id="swile-note-op" type="text"></div>
+            </div>
+            <p id="swile-correction-erreur" class="swile-feedback" role="alert"></p>
+            <div class="env-modal-actions">
+                <button type="button" id="swile-annuler" class="env-modal-cancel">Annuler</button>
+                <button type="submit" id="swile-valider" class="env-modal-save">Enregistrer</button>
+            </div>
+        </form>
+    </dialog>
     <dialog id="renommage-dialog" class="env-modal-box" aria-labelledby="renommage-titre">
         <form id="renommage-form">
             <h2 class="env-modal-title" id="renommage-titre">Renommer un fournisseur</h2>
@@ -1284,16 +1304,64 @@
         }
         onSnapshot(collection(db,'swile'),snap=>{
             carteSwile=snap.docs.find(d=>d.id==='carte')?.data();
-            mouvementsSwile=snap.docs.filter(d=>d.id!=='carte').map(d=>d.data())
+            mouvementsSwile=snap.docs.filter(d=>d.id!=='carte').map(d=>({...d.data(),id:d.id}))
                 .sort((a,b)=>b.date.localeCompare(a.date) || b.saisie.localeCompare(a.saisie));
             afficherSwile();
             el('swile-historique').innerHTML=mouvementsSwile.map(m=>{
                 const debit=m.type==='depense';
                 return `<div class="op-card"><div class="op-main"><small>${dateFrSwile(m.date)}</small><br><span class="op-name">${debit?html(m.tiers):'Rechargement'}</span>
                     ${m.note?`<small class="op-note">${html(m.note)}</small>`:''}</div>
-                    <strong class="op-amt ${debit?'swile-debit':'swile-ok'}">${debit?'−':'+'}${fmt(m.montant/100)}</strong></div>`;
+                    <strong class="op-amt ${debit?'swile-debit':'swile-ok'}">${debit?'−':'+'}${fmt(m.montant/100)}</strong>
+                    <div class="swile-actions" data-id="${html(m.id)}"><button type="button" class="env-action-btn env-btn-edit" data-swile="modifier">Modifier</button>
+                    <button type="button" class="env-action-btn env-btn-del" data-swile="supprimer">Supprimer</button></div></div>`;
             }).join('') || '<p>Aucune opération Swile enregistrée.</p>';
         });
+        const dialogueSwile=el('swile-dialog'), formSwile=el('swile-correction');
+        let choixSwile;
+        el('swile-historique').onclick=event=>{
+            const bouton=event.target.closest('[data-swile]');
+            if (!bouton) return;
+            const ligne=mouvementsSwile.find(m=>m.id===bouton.parentElement.dataset.id);
+            if (!ligne) return;
+            const {id,...original}=ligne;
+            const suppression=bouton.dataset.swile==='supprimer', debit=original.type==='depense';
+            choixSwile={id,original,suppression,version:carteSwile.version};
+            el('swile-titre').textContent=(suppression?'Supprimer ':'Modifier ')+(debit?'la dépense Swile':'le rechargement Swile');
+            el('swile-champs').hidden=suppression;
+            formSwile.noValidate=suppression;
+            el('swile-confirmation').hidden=!suppression;
+            el('swile-confirmation').textContent=(debit?original.tiers:'Rechargement')+' · '+dateFrSwile(original.date)+' · '+fmt(original.montant/100);
+            el('swile-jour-op').min=carteSwile.date;
+            el('swile-jour-op').max=jourSwile();
+            el('swile-jour-op').value=original.date;
+            el('swile-montant-op').value=(original.montant/100).toFixed(2);
+            el('swile-fournisseur-champ').hidden=!debit;
+            el('swile-fournisseur').required=debit;
+            el('swile-fournisseur').value=original.tiers||'';
+            el('swile-note-op').value=original.note||'';
+            el('swile-valider').textContent=suppression?'Confirmer la suppression':'Enregistrer';
+            el('swile-correction-erreur').textContent='';
+            dialogueSwile.showModal();
+            (suppression?el('swile-annuler'):el('swile-jour-op')).focus();
+        };
+        el('swile-annuler').onclick=()=>dialogueSwile.close();
+        formSwile.onsubmit=async event=>{
+            event.preventDefault();
+            if (el('swile-valider').disabled) return;
+            const {id,original,suppression,version}=choixSwile;
+            el('swile-valider').disabled=true;
+            try {
+                let nouvelle=null;
+                if (!suppression) {
+                    nouvelle={...original,date:el('swile-jour-op').value,
+                        montant:centimesSwile(el('swile-montant-op').value),note:el('swile-note-op').value.trim()};
+                    if (original.type==='depense') nouvelle.tiers=el('swile-fournisseur').value.trim();
+                }
+                await store.corrigerSwile(id,nouvelle,version);
+                dialogueSwile.close();
+            } catch (error) { el('swile-correction-erreur').textContent=error.message; }
+            finally { el('swile-valider').disabled=false; }
+        };
         // Le plafond se renouvelle à minuit à Paris, y compris après la veille du téléphone.
         function renouvelerJourSwile() {
             afficherSwile();
